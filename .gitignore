@@ -1,0 +1,4 @@
+.buildozer
+bin
+__pycache__
+.DS_Store

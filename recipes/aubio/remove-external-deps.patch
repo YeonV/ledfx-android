@@ -1,0 +1,39 @@
+diff --git a/python/lib/moresetuptools.py b/python/lib/moresetuptools.py
+index 0c70431..30aa4bd 100644
+--- a/python/lib/moresetuptools.py
++++ b/python/lib/moresetuptools.py
+@@ -166,7 +166,7 @@ class build_ext(_build_ext):
+         else:
+             enable_double = False
+         # seack for aubio headers and lib in PKG_CONFIG_PATH
+-        add_system_aubio(extension)
++        # add_system_aubio(extension)
+         # the lib was not installed on this system
+         if 'aubio' not in extension.libraries:
+             # use local src/aubio.h
+@@ -178,7 +178,7 @@ class build_ext(_build_ext):
+                 add_local_aubio_lib(extension)
+             else:
+                 # check for external dependencies
+-                add_external_deps(extension, usedouble=enable_double)
++                # add_external_deps(extension, usedouble=enable_double)
+                 # force adding libav on windows
+                 if os.name == 'nt' and ('WITH_LIBAV' in os.environ \
+                         or 'CONDA_PREFIX' in os.environ):
+diff --git a/setup.py b/setup.py
+index 88f8f07..c7e4545 100755
+--- a/setup.py
++++ b/setup.py
+@@ -27,9 +27,9 @@ try:
+ except ImportError:
+     pass
+ 
+-if sys.platform.startswith('darwin'):
+-    extra_link_args += ['-framework', 'CoreFoundation',
+-            '-framework', 'AudioToolbox']
++# if sys.platform.startswith('darwin'):
++#     extra_link_args += ['-framework', 'CoreFoundation',
++#             '-framework', 'AudioToolbox']
+ 
+ sources = sorted(glob.glob(os.path.join('python', 'ext', '*.c')))
+ 

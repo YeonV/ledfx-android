@@ -1,0 +1,5 @@
+<!-- Needed so app icon shows up on apps list for Android TV -->
+<intent-filter>
+    <action android:name="android.intent.action.MAIN" />
+    <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+</intent-filter>

@@ -1,0 +1,17 @@
+diff --git a/ifaddr/_posix.py b/ifaddr/_posix.py
+index 2903ee7..14891e5 100644
+--- a/ifaddr/_posix.py
++++ b/ifaddr/_posix.py
+@@ -37,7 +37,11 @@ ifaddrs._fields_ = [('ifa_next', ctypes.POINTER(ifaddrs)),
+                     ('ifa_addr', ctypes.POINTER(shared.sockaddr)),
+                     ('ifa_netmask', ctypes.POINTER(shared.sockaddr))]
+ 
+-libc = ctypes.CDLL(ctypes.util.find_library("socket" if os.uname()[0] == "SunOS" else "c"), use_errno=True)
++# passing None to CDLL causes dlopen to return a handle for the main program, which
++# conveniently already includes ifaddrs.h from the Android NDK. ifaddrs.h defines all
++# the structs and functions required by this library. This solves the problem of recent
++# Android versions not allowing apps to link to system libraries like libc.so.
++libc = ctypes.CDLL(None, use_errno=True)
+ 
+ def get_adapters():
+ 
