@@ -8,11 +8,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK
-        uses: digreatbrian/buildozer-action@v2
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
+          architecture: x64
           python-version: 3.12
-          buildozer-cmd: buildozer -v android debug
+      
+      - name: Setup Java 17 required by Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'  # or 'zulu','liberica', etc.
+          java-version: '17'
+    
+      - name: Set JAVA_HOME
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      
+      - name: Prepare virtual environment
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          echo "Using Python==$(python --version)"
+        
+      - name: Install and upgrade dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev
+          export PATH=$PATH:~/.local/bin/
+          python3 -m pip install --upgrade buildozer
+  
+      - name: Build with Buildozer
+        run: buildozer android debug
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
