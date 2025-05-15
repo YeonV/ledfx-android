@@ -2,8 +2,6 @@
 
 import pathlib
 import shutil
-import os
-from glob import glob
 
 root = pathlib.Path(__file__).parent.parent
 build_root = root / '.buildozer'
