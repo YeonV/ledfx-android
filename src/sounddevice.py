@@ -11,7 +11,6 @@ from android_visualizer import AndroidVisualizer
 CAPTURE_RATE_DEFAULT = 60
 
 logger = logging.getLogger(__name__)
-logger.error('TESTING SOUNDDEVICE LOGGER: ERROR')
 
 class default:
     device = {
