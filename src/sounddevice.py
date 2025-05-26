@@ -92,12 +92,26 @@ class InputStream(Thread):
                     if self.samplerate is not None and av.sampling_rate != self.samplerate:
                         logger.error(f'Unsupported sampling rate {self.samplerate} requested from AndroidVisualizer. Actual samplerate is {av.sampling_rate}')
                     
+                    # use temporary buffer if the requested blocksize is larger than the Android Visualizer's capture size
+                    need_buffer = av.capture_size < self.blocksize
+                    
+                    if need_buffer:
+                        logger.debug(f'Unsupported blocksize {self.blocksize} requested from AndroidVisualizer. Actual capture size is {av.capture_size}. Using temporary buffer of size { self.blocksize} to transfer data.')
+                        # make a buffer that's big enough to hold the requested blocksize or the Android Visualizer's capture size, whichever is larger
+                        buffer = np.zeros(self.blocksize, dtype=self.dtype)
+                    
                     while self._should_run:
                         last_run = time.time()
 
                         # convert Android Visualizer data range [0, 255] to PortAudio float range [-1.0, 1.0]
                         data = np.array(av.waveform, dtype=self.dtype) / 128.0 - 1.0
-
+                        
+                        if need_buffer:
+                            buffer[:av.capture_size] = data  # copy captured data to buffer
+                            data = buffer  # use buffer as data to pass to callback
+                        else:
+                            data = data[:self.blocksize]  # make sure we're only passing the requested blocksize to callback
+                        
                         # call stream_callback with converted data
                         if self.callback:
                             ret = self.callback(

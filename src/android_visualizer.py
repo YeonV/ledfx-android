@@ -45,15 +45,23 @@ class AndroidVisualizer:
 
         # disable visualizer while we configure it
         self.vis.setEnabled(False)
-
-        # if no default capture size is provided, use max value available on this device (typically 1024)
-        if self.capture_size is None:
-            self.capture_size = self.vis.getCaptureSizeRange()[1]
-        logger.debug(f'Capture size {self.capture_size}')
-
-        # configure visualizer to use that capture size
-        self.vis.setCaptureSize(self.capture_size)
-
+        
+        capture_size_range = self.vis.getCaptureSizeRange()
+        default_capture_size = self.vis.getCaptureSize() or capture_size_range[-1]
+        logger.debug(f'Capture size range: {capture_size_range}')
+        logger.debug(f'Default capture size: {default_capture_size}')
+        
+        # try to use requested capture size but fall back to default/max capture size if it fails
+        try:
+            self.vis.setCaptureSize(self.capture_size or default_capture_size)
+        except Exception as e:
+            logger.debug(f'Error setting capture size {self.capture_size}: {e}')
+            logger.debug('Falling back to default or max capture size')
+            self.vis.setCaptureSize(default_capture_size)
+        
+        self.capture_size = self.vis.getCaptureSize()
+        logger.debug(f'Using capture size of {self.capture_size}')
+        
         # init empty bytearrays to hold captured waveform and fft data
         self._waveform = bytearray(self.capture_size)
         self._fft = bytearray(self.capture_size)
@@ -61,13 +69,15 @@ class AndroidVisualizer:
         # save sampling rate used by the visualizer (typically 44100 Hz)
         self.sampling_rate = self.vis.getSamplingRate() / 1000  # divide by 1000 because Android Visualizer provides sampling rate in millihertz
         
+        logger.debug(f'Sampling rate: {self.sampling_rate} Hz')
+        
         # use normalized scaling (waveform output is not scaled by device volume setting)
         self.vis.setScalingMode(NativeAndroidVisualizer.SCALING_MODE_NORMALIZED)
 
         # tell Android that we don't want any RMS measurements
         self.vis.setMeasurementMode(NativeAndroidVisualizer.MEASUREMENT_MODE_NONE)
 
-        # Abandoned callback method, but leaving here as an example of how this could be done if it actually worked
+        # Abandoned callback method, but leaving here as an example of how this could be done if someone wants to revisit this
         # See below for definition of PythonOnDataCaptureListener
         # log.d('Setting data capture listener')
         # self.capture_rate = self.vis.getMaxCaptureRate()
