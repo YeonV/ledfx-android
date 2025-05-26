@@ -4,7 +4,7 @@ This project is an Android port of the amazing [LedFx](https://github.com/LedFx/
 
 ## Android TV
 
-Android TV devices like NVIDIA shield are often the central hub in a living room media experience. The original goal of this project was to enable LedFx here so it could visualize music from the apps I normally use to stream music (Spotify, YT, etc.) AND music that is cast to the Android TV box from my phone.
+Android TV devices like NVIDIA shield are often the central hub in a living room media experience. The original goal of this project was to enable LedFx here so it could visualize music from the apps I normally use to stream music (Spotify, YT, etc.) AND music that is **cast** to the Android TV from a mobile device. This app has been tested on a 2019 NVIDIA Shield Pro so your results may vary with other devices.
 
 There are a few differences in building apps for mobile compared to Android TV, most importantly the fact that users interact with your app using a remote control rather than a touch screen or mouse/keyboard. Enter [Leanback Mode](https://developer.android.com/design/ui/tv/guides/foundations/design-for-tv). When running on Android TV, LedFx doesn't show its default UI but instead shows a QR code that points mobile devices to the LedFx server running on the Android TV device.
 
@@ -16,7 +16,7 @@ The secret to visualizing **any** audio on your android device lies in the [Andr
 
 ### Android support of various LedFx dependencies
 
-LedFx imports a few libraries that don't support Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these modules in the src directory with just enough content to make LedFx run. This is not a great solution long-term but works for now until changes can be made upstream to fix the problems for this project.
+LedFx imports a few libraries that don't support Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. This is not a great solution long-term but works for now.
 
 - rtmidi: Midi library for controlling devices connected to the computer via midi. Doesn't make sense to do this from Android TV devices. If upstream LedFx made libraries like this optional I wouldn't have to mock them here and everything would just work :)
 - sentry_sdk: Handles automatic updates on PC. Android has its own mechanism for updating apps so this isn't needed. If upstream LedFx only imported this module when running in "online mode" I wouldn't have to mock it here.
@@ -28,7 +28,7 @@ Some Android devices don't have mDNS support so auto discovery of WLED devices f
 
 ## Stack
 
-The build system uses [Buildozer](https://github.com/kivy/buildozer) and [python-for-android](https://github.com/kivy/python-for-android/) which are part of the [Kivy](https://github.com/kivy/kivy) ecosystem.
+The build system uses [Buildozer](https://github.com/kivy/buildozer) and [python-for-android](https://github.com/kivy/python-for-android/) which are part of the [Kivy](https://github.com/kivy/kivy) ecosystem. A minor change to python-for-android was needed to solve numpy build errors so a [custom fork](https://github.com/broccoliboy/python-for-android/) is used for this compilation.
 
 Buildozer handles android build environment creation by automatically downloading required SDK, NDK, etc. First run will be slow because of this.
 
@@ -36,12 +36,12 @@ Python-for-android uses [recipes](https://python-for-android.readthedocs.io/en/l
 
 ## Getting started
 
+- Python 3.12 recommended
 - Clone this repo with submodules
   - `git clone --recurse-submodules --depth=1 https://github.com/broccoliboy/ledfx-android`
-  - `deps/ledfx` is needed before we run buildozer so we have access to version info and icons that are used in the Android build.
-- Optional: use a devcontainer
-  - This repository includes a devcontainer recipe to quickly get up and running in a [VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers) built around the [buildozer docker container](https://hub.docker.com/r/kivy/buildozer). This requires a local installation of Docker/Podman, but greatly simplifies development environment setup and works on any OS that supports Docker.
-  - VS Code will automatically detect the devcontainer environment and ask if you want to reopen the folder in a container. Click yes, or use Ctrl/Cmd+Shift+P -> Remote-Containers: Open Workspace in Container...
+  - `deps/ledfx` submodule will be populated if `--recurse-submodules` flag is passed to git clone. This is needed before we run buildozer so we have access to version info and icons that are used in the Android build.
+- Install latest buildozer from source
+  - `pip install --upgrade git+https://github.com/kivy/buildozer`
 
 ### Build
 
@@ -52,13 +52,29 @@ Python-for-android uses [recipes](https://python-for-android.readthedocs.io/en/l
 - Other buildozer shell commands
   - `buildozer android debug` or `buildozer android release`
     - Builds apk in debug/release mode
+  - `buildozer android debug deploy run logcat`
+    - Build apk, deploy to running emulator or real device connected through adb, start app, and start log viewer
   - `buildozer android clean`
     - Cleans build environment
-- Optionally, set env var SKIP_PREREQUISITES_CHECK=1 on command line to speed up buildozer
+- Optionally, set env var `SKIP_PREREQUISITES_CHECK=1` to speed up buildozer after you confirm all prerequisites are available
 
 See [here](https://github.com/kivy/buildozer) for more information on using the buildozer environment
+
+### Github Action
+
+This repo includes a Github Action that will build an apk and trigger a new release any time a tagged version is committed. See [.github/workflows/build-apk.yml](.github/workflows/build-apk.yml) for details.
 
 ## Future work
 
 - Improve LedFx Leanback Mode to allow more controls, like triggering LedFx Scenes or setting effects on known devices.
 - Automatic detection of music/audio playing using [Android Visualizer peak/RMS measurement mode](https://developer.android.com/reference/android/media/audiofx/Visualizer#getMeasurementPeakRms(android.media.audiofx.Visualizer.MeasurementPeakRms)) to enable/disable LedFx effects
+
+## Gallery
+
+### Mobile
+
+<img src="img/ledfx-android-mobile.png" alt="Mobile" style="max-width: 200px; width: 100%;" />
+
+### Android TV
+
+<img src="img/ledfx-android-tv.png" alt="Android TV" style="max-width: 600px; width: 100%;" />
