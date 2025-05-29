@@ -1,11 +1,10 @@
 # This module spoofs the python-sounddevice api to let LedFx read Android Visualizer PCM data as if it were a real audio input device
+
 import logging
 import time
 from functools import lru_cache
 from threading import Thread
-
 import numpy as np
-
 from android_visualizer import AndroidVisualizer
 
 CAPTURE_RATE_DEFAULT = 60
