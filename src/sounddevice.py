@@ -12,6 +12,7 @@ CAPTURE_RATE_DEFAULT = 60
 
 logger = logging.getLogger(__name__)
 
+
 class default:
     device = {
         'input': 0,
@@ -22,18 +23,14 @@ class default:
 @lru_cache(maxsize=1)
 def get_android_visualizer_stream_info():
     # Need to start visualizer to get sampling rate info, but immediately close it (with context manager).
-    # This function is cached so it will only be called in the program lifecycle.
-    try:
-        with AndroidVisualizer() as av:
-            return {
-                'name': av.name,
-                'hostapi': 0,
-                'max_input_channels': av.channels,
-                'default_samplerate': av.sampling_rate
-            }
-    except Exception as e:
-        logger.error(e)
-        get_android_visualizer_stream_info.cache_clear()  # clear cache so future attempts will actually run instead of just returning None from cache
+    # This function is cached so it will only be called once in the program lifecycle.
+    with AndroidVisualizer() as av:
+        return {
+            'name': av.name,
+            'hostapi': 0,
+            'max_input_channels': av.channels,
+            'default_samplerate': av.sampling_rate
+        }
 
 
 def query_hostapis(*args, **kwargs):
@@ -49,9 +46,14 @@ def query_hostapis(*args, **kwargs):
 
 def query_devices(*args, **kwargs):
     devices = []
-    info = get_android_visualizer_stream_info()
-    if info is not None:
+    
+    # use try/except in case an exception is thrown when trying to init AndroidVisualizer
+    try:
+        info = get_android_visualizer_stream_info()
         devices.append(info)
+    except Exception as e:
+        logger.error(e)
+
     return tuple(devices)
 
 
