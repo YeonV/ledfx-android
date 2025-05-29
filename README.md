@@ -73,8 +73,8 @@ This repo includes a Github Action that will build an apk and trigger a new rele
 
 ### Mobile
 
-<img src="img/ledfx-android-mobile.png" alt="Mobile" style="max-width: 200px; width: 100%;" />
+<img src="img/ledfx-android-mobile.png" alt="Mobile" style="width: 200px;" />
 
 ### Android TV
 
-<img src="img/ledfx-android-tv.png" alt="Android TV" style="max-width: 600px; width: 100%;" />
+<img src="img/ledfx-android-tv.png" alt="Android TV" style="width: 600px;" />
