@@ -45,11 +45,7 @@ Python-for-android uses [recipes](https://python-for-android.readthedocs.io/en/l
 
 ### Build
 
-- Use VS Code default build command
-  - `Ctrl/Cmd + Shift + B`
-    - Runs default build task defined in .vscode/tasks.json
-    - Equivalent to `buildozer android debug`
-- Other buildozer shell commands
+- Build using `buildozer`
   - `buildozer android debug` or `buildozer android release`
     - Builds apk in debug/release mode
   - `buildozer android debug deploy run logcat`
@@ -66,7 +62,7 @@ This repo includes a Github Action that will build an apk and trigger a new rele
 
 ## Future work
 
-- Improve LedFx Leanback Mode to allow more controls, like triggering LedFx Scenes or setting effects on known devices.
+- Improve LedFx Leanback Mode to allow more controls, like triggering LedFx Scenes or setting effects on known devices
 - Automatic detection of music/audio playing using [Android Visualizer peak/RMS measurement mode](https://developer.android.com/reference/android/media/audiofx/Visualizer#getMeasurementPeakRms(android.media.audiofx.Visualizer.MeasurementPeakRms)) to enable/disable LedFx effects
 
 ## Gallery
