@@ -1,12 +1,14 @@
 # ledfx-android
 
-This project is an Android port of the amazing [LedFx](https://github.com/LedFx/LedFx) audio reactive LED controller library, allowing visualization of **any audio** playing from your android device. Yes, that means Spotify, YouTube, mobile games, even system UI sounds! This project is intended to work on both mobile and Android TV devices.
+This project is an Android port of the amazing [LedFx](https://github.com/LedFx/LedFx) audio reactive LED controller library, allowing visualization of **any audio** playing from your android device. Yes, that means Spotify, YouTube, Radio Apps, etc. It doesn't require root or any funny business on the phone and runs as any typical app does. All you have to do is add your LED strip devices, activate an effect, and press play! This project is intended to work on both mobile and Android TV devices.
 
 ## Android TV
 
 Android TV devices like NVIDIA shield are often the central hub in a living room media experience. The original goal of this project was to enable LedFx here so it could visualize music from the apps I normally use to stream music (Spotify, YT, etc.) AND music that is **cast** to the Android TV from a mobile device. This app has been tested on a 2019 NVIDIA Shield Pro so your results may vary with other devices.
 
 There are a few differences in building apps for mobile compared to Android TV, most importantly the fact that users interact with your app using a remote control rather than a touch screen or mouse/keyboard. Enter [Leanback Mode](https://developer.android.com/design/ui/tv/guides/foundations/design-for-tv). When running on Android TV, LedFx doesn't show its default UI but instead shows a QR code that points mobile devices to the LedFx server running on the Android TV device.
+
+The same apk will run on both mobile and TV and will automatically determine which mode to run in, and automatically determine the TV IP address for displaying the QR code.
 
 ## Getting system audio into LedFx
 
@@ -16,11 +18,11 @@ The secret to visualizing **any** audio on your android device lies in the [Andr
 
 ### Android support of various LedFx dependencies
 
-LedFx imports a few libraries that don't support Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. This is not a great solution long-term but works for now.
+LedFx imports a few libraries that aren't compatible with Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. Exploiting Python's import search order, these mock libraries will be imported instead of the (nonexistent) real ones, with just enough functionality to make LedFx happy. This is not a great solution long-term but works for now.
 
 - rtmidi: Midi library for controlling devices connected to the computer via midi. Doesn't make sense to do this from Android TV devices. If upstream LedFx made libraries like this optional I wouldn't have to mock them here and everything would just work :)
 - sentry_sdk: Handles automatic updates on PC. Android has its own mechanism for updating apps so this isn't needed. If upstream LedFx only imported this module when running in "online mode" I wouldn't have to mock it here.
-- mss: Screen grabber. No android support. Ideally, upstream LedFx would add a try/catch around their programmatic imports of devices and effects so anything that fails to import simply doesn't show up in the dropdown lists.
+- mss: Screen grabber. No android support. Ideally, upstream LedFx would add a try/catch around their programmatic imports of devices and effects so anything that fails to import simply doesn't show up in the web UI dropdowns.
 
 ### Hostname resolution
 
