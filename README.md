@@ -16,6 +16,14 @@ The secret to visualizing **any** audio on your android device lies in the [Andr
 
 ## Quirks
 
+### Background service priority
+
+This implementation runs the LedFx server as a background process on Android so it can continue sending LED data when the user switches to their favorite music app. Typically, Android OS is fairly aggressive at pausing apps that are sent to the background to save memory, which would cause serious problems for LedFx. To minimize the chances of this, the LedFx server runs in a [foreground service](https://developer.android.com/develop/background-work/services/fgs). This tells Android to try its best to keep the service running because it's doing important things in the background. However, this is never a guarantee. If Android decides it's running low on memory, it can always pause/kill the LedFx service to prioritize an app that the user is actually interacting with. As far as I can tell, there's no way for a user space app to *guarantee* that a background process continues to run no matter what. For this reason, Android users (esp those on older hardware) may see performance issues when LedFx is running in the background.
+
+Additionally, the foreground service is set to "sticky" which tells android to always restart it if it should happen to die for some reason.
+
+See here for more details on working with services in python-for-android: https://python-for-android.readthedocs.io/en/latest/services.html
+
 ### Android support of various LedFx dependencies
 
 LedFx imports a few libraries that aren't compatible with Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. Exploiting Python's import search order, these mock libraries will be imported instead of the (nonexistent) real ones, with just enough functionality to make LedFx happy. This is not a great solution long-term but works for now.
@@ -63,6 +71,7 @@ This repo includes a Github Action that will build an apk and trigger a new rele
 
 ## Future work
 
+- Support config file import/export. Currently doesn't work in Android webview.
 - Improve LedFx Leanback Mode to allow more controls, like triggering LedFx Scenes or setting effects on known devices
 - Automatic detection of music/audio playing using [Android Visualizer peak/RMS measurement mode](https://developer.android.com/reference/android/media/audiofx/Visualizer#getMeasurementPeakRms(android.media.audiofx.Visualizer.MeasurementPeakRms)) to enable/disable LedFx effects
 
