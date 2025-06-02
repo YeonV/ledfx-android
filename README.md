@@ -21,7 +21,6 @@ The secret to visualizing **any** audio on your android device lies in the [Andr
 LedFx imports a few libraries that aren't compatible with Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. Exploiting Python's import search order, these mock libraries will be imported instead of the (nonexistent) real ones, with just enough functionality to make LedFx happy. This is not a great solution long-term but works for now.
 
 - rtmidi: Midi library for controlling devices connected to the computer via midi. Doesn't make sense to do this from Android TV devices. If upstream LedFx made libraries like this optional I wouldn't have to mock them here and everything would just work :)
-- sentry_sdk: Handles automatic updates on PC. Android has its own mechanism for updating apps so this isn't needed. If upstream LedFx only imported this module when running in "online mode" I wouldn't have to mock it here.
 - mss: Screen grabber. No android support. Ideally, upstream LedFx would add a try/catch around their programmatic imports of devices and effects so anything that fails to import simply doesn't show up in the web UI dropdowns.
 
 ### Hostname resolution
