@@ -28,7 +28,6 @@ source.include_exts = py,png,jpg,kv,atlas
 
 # (list) List of directory to exclude (leave empty to not exclude anything)
 #source.exclude_dirs = tests, bin, venv
-source.exclude_dirs = Lib/test
 
 # (list) List of exclusions using pattern matching
 # Do not prefix with './'
@@ -105,13 +104,13 @@ fullscreen = 0
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions.html for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, CAMERA
+android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
-# android.api = 33
+#android.api = 31
 
 # (int) Minimum API your APK / AAB will support.
 android.minapi = 26
@@ -146,11 +145,11 @@ android.ndk_api = 26
 android.accept_sdk_license = True
 
 # (str) Android entry point, default is ok for Kivy-based app
-android.entrypoint = com.ledfx.ledfx.LedFxActivity
+#android.entrypoint = org.kivy.android.PythonActivity
 
 # (str) Full name including package path of the Java class that implements Android Activity
 # use that parameter together with android.entrypoint to set custom Java class instead of PythonActivity
-android.activity_class_name = com.ledfx.ledfx.LedFxActivity
+#android.activity_class_name = org.kivy.android.PythonActivity
 
 # (str) Extra xml to write directly inside the <manifest> element of AndroidManifest.xml
 # use that parameter to provide a filename from where to load your custom XML code
@@ -185,11 +184,9 @@ android.activity_class_name = com.ledfx.ledfx.LedFxActivity
 # OUYA-ODK/libs/*.jar
 #android.add_jars = foo.jar,bar.jar,path/to/more/*.jar
 
-android.java_src_dir = src/main/java
-
 # (list) List of Java files to add to the android project (can be java or a
 # directory containing the files)
-android.add_src = src/main/java
+#android.add_src =
 
 # (list) Android AAR archives to add
 #android.add_aars =
@@ -213,12 +210,12 @@ android.add_src = src/main/java
 #android.add_resources = 
 
 # (list) Gradle dependencies to add
-#android.gradle_dependencies = androidx.core:core-ktx:1.12.0
+#android.gradle_dependencies =
 
 # (bool) Enable AndroidX support. Enable when 'android.gradle_dependencies'
 # contains an 'androidx' package, or any package from Kotlin source.
 # android.enable_androidx requires android.api >= 28
-# android.enable_androidx = True
+#android.enable_androidx = True
 
 # (list) add java compile options
 # this can for example be necessary when importing certain java libraries using the 'android.gradle_dependencies' option
@@ -336,7 +333,7 @@ android.allow_backup = True
 #p4a.url =
 
 # (str) python-for-android fork to use in case if p4a.url is not specified, defaults to upstream (kivy)
-p4a.fork = broccoliboy
+p4a.fork = YeonV
 
 # (str) python-for-android branch to use, defaults to master
 p4a.branch = develop
