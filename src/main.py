@@ -18,6 +18,7 @@ permissions_list = [
     Permission.MODIFY_AUDIO_SETTINGS,
     Permission.READ_EXTERNAL_STORAGE,
     Permission.WRITE_EXTERNAL_STORAGE,
+    Permission.CAMERA,
 ]
 
 
