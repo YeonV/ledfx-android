@@ -663,27 +663,3 @@ public class PythonActivity extends Activity {
 }
 
 
-class PythonMain implements Runnable {
-    @Override
-    public void run() {
-       
-       
-        if (PythonActivity.mActivity != null) {
-            PythonActivity.nativeInit(new String[0]);
-        } else {
-            Log.e("PythonMain", "mActivity is null, cannot call nativeInit!");
-        }
-    }
-}
-
-class WebViewLoaderMain implements Runnable {
-    @Override
-    public void run() {
-       
-        if (PythonActivity.mActivity != null) {
-            WebViewLoader.testConnection();
-        } else {
-            Log.e("WebViewLoaderMain", "mActivity is null, cannot call WebViewLoader.testConnection!");
-        }
-    }
-}
