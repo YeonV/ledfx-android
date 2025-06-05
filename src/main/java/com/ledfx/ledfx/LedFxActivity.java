@@ -21,7 +21,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.app.DownloadManager;
 import android.widget.Toast;
-import androidx.core.content.ContextCompat;
+// import androidx.core.content.ContextCompat;
 
 import org.kivy.android.PythonActivity; // Import P4A's PythonActivity
 // Import PythonUtil if needed, or rely on super class's usage
@@ -85,12 +85,14 @@ public class LedFxActivity extends PythonActivity { // Extend P4A's PythonActivi
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         Log.d(TAG, "onWindowFocusChanged, hasFocus: " + hasFocus);
-        if (hasFocus && PythonActivity.mWebView != null && PythonActivity.mWebView.getWebChromeClient().getClass() == WebChromeClient.class) {
-            // Check if mWebView exists and if a custom client hasn't been set yet
-            // (The default client is just `new WebChromeClient()`)
-            Log.i(TAG, "Setting custom WebChromeClient and DownloadListener now.");
+
+        // Assuming PythonActivity.mWebView is the static WebView instance from the base class
+        if (hasFocus && PythonActivity.mWebView != null &&
+            (PythonActivity.mWebView.getWebChromeClient() == null || PythonActivity.mWebView.getWebChromeClient().getClass() == WebChromeClient.class)) {
             
-            // Apply Download Listener
+            Log.i(TAG, "Setting custom WebChromeClient (No AndroidX) and DownloadListener.");
+            
+            // ... (your DownloadListener setup remains the same) ...
             PythonActivity.mWebView.setDownloadListener(new DownloadListener() {
                 @Override
                 public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
@@ -133,13 +135,10 @@ public class LedFxActivity extends PythonActivity { // Extend P4A's PythonActivi
                 @Override
                 public void onPermissionRequest(final PermissionRequest request) {
                     final String[] requestedResources = request.getResources();
-                    Log.d(TAG, "LedFxActivity WebChromeClient: onPermissionRequest for origin: " + request.getOrigin().toString());
-                    Log.d(TAG, "LedFxActivity WebChromeClient: Requesting resources: " + Arrays.toString(requestedResources));
+                    Log.d(TAG, "NoAndroidX WebChromeClient: onPermissionRequest for origin: " + request.getOrigin().toString());
+                    Log.d(TAG, "NoAndroidX WebChromeClient: Requesting resources: " + Arrays.toString(requestedResources));
 
-                    // final Activity activity = LedFxActivity.this; // Use 'this' or PythonActivity.mActivity
-                    // PythonActivity.mActivity should be correctly set by super.onCreate()
-                    
-                    final Activity currentActivity = PythonActivity.mActivity; // Or just LedFxActivity.this
+                    final Activity currentActivity = PythonActivity.mActivity; // Or LedFxActivity.this
 
                     currentActivity.runOnUiThread(new Runnable() {
                         @Override
@@ -159,7 +158,8 @@ public class LedFxActivity extends PythonActivity { // Extend P4A's PythonActivi
                             boolean allAppPermissionsGranted = true;
 
                             if (cameraRequested) {
-                                if (ContextCompat.checkSelfPermission(currentActivity, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                                // *** MODIFIED PERMISSION CHECK HERE ***
+                                if (currentActivity.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                                     permissionsToGrantInWebView.add(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
                                 } else {
                                     Log.w(TAG, "App lacks CAMERA permission for WebView request.");
@@ -168,7 +168,8 @@ public class LedFxActivity extends PythonActivity { // Extend P4A's PythonActivi
                             }
 
                             if (microphoneRequested) {
-                                if (ContextCompat.checkSelfPermission(currentActivity, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                // *** MODIFIED PERMISSION CHECK HERE ***
+                                if (currentActivity.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                                     permissionsToGrantInWebView.add(PermissionRequest.RESOURCE_AUDIO_CAPTURE);
                                 } else {
                                     Log.w(TAG, "App lacks RECORD_AUDIO permission for WebView request.");
@@ -189,13 +190,14 @@ public class LedFxActivity extends PythonActivity { // Extend P4A's PythonActivi
                         }
                     });
                 }
-                // You can override other WebChromeClient methods here if needed, calling super.methodName(...)
+                // ... (other WebChromeClient overrides if any) ...
             });
-            Log.i(TAG, "Custom WebChromeClient and DownloadListener have been set.");
+            Log.i(TAG, "Custom WebChromeClient (No AndroidX) and DownloadListener have been set.");
         } else if (hasFocus && PythonActivity.mWebView != null) {
             Log.d(TAG, "WebChromeClient might already be custom or mWebView not ready for new client.");
         }
     }
+
 
     // You generally do NOT need to re-implement all methods of PythonActivity
     // unless you specifically want to change their behavior.
