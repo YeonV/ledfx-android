@@ -150,7 +150,7 @@ android.accept_sdk_license = True
 
 # (str) Full name including package path of the Java class that implements Android Activity
 # use that parameter together with android.entrypoint to set custom Java class instead of PythonActivity
-#android.activity_class_name = org.kivy.android.PythonActivity
+android.activity_class_name = com.ledfx.ledfx.LedFxActivity
 
 # (str) Extra xml to write directly inside the <manifest> element of AndroidManifest.xml
 # use that parameter to provide a filename from where to load your custom XML code
@@ -213,7 +213,7 @@ android.add_src = src/main/java
 #android.add_resources = 
 
 # (list) Gradle dependencies to add
-#android.gradle_dependencies =
+android.gradle_dependencies = androidx.core:core-ktx:1.12.0
 
 # (bool) Enable AndroidX support. Enable when 'android.gradle_dependencies'
 # contains an 'androidx' package, or any package from Kotlin source.
