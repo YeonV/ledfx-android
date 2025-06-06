@@ -1,6 +1,5 @@
 # Main ledfx-android entry point
 # Requests permissions and kicks off LedFx service
-# If running on Android TV, serves leanback UI instead of typical LedFx UI
 
 import logging
 import time
@@ -8,8 +7,6 @@ import threading
 
 from jnius import autoclass, cast, java_method, PythonJavaClass
 from android.permissions import check_permission, request_permissions, Permission
-
-from leanback import is_leanback, serve as serve_leanback
 
 logger = logging.getLogger('ledfx-android')
 
@@ -35,14 +32,11 @@ def main():
     args = ''
     service = autoclass('com.ledfx.ledfx.ServiceLedfx')
     service.start(mActivity, small_icon, title, content, args)
-    
-    if is_leanback():
-        serve_leanback()
-    else:
-        # Sleep this thread to let webview UI run while foreground service is running
-        while True:
-            time.sleep(1)
-    
+
+    # Sleep this thread to let webview UI run while foreground service is running
+    while True:
+        time.sleep(1)
+
 
 def validate_permissions():
     """Ensures all required permissions have been granted. If no, request them. If user denies, show a toast and shut down app.
