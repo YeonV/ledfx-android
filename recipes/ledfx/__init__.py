@@ -41,7 +41,6 @@ class LedFxRecipe(PyProjectRecipe):
         'python-dotenv>=1.0.0,<2.0.0',
         'vnoise>=0.1.0,<1.0.0',
         'webcolors>=24',
-        'sentry-sdk>=1.40.4'
     ]
 
 
