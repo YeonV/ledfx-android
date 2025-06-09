@@ -279,7 +279,7 @@ android.manifest.intent_filters = %(source.dir)s/intent-filters.xml
 #android.uses_library =
 
 # (str) Android logcat filters to use
-android.logcat_filters = python:I ledfx:I android_visualizer:I sounddevice:I *:S
+android.logcat_filters = PythonActivity:W python:I ledfx:I android_visualizer:I sounddevice:I *:S
 
 # (bool) Android logcat only display log for activity's pid
 #android.logcat_pid_only = False
