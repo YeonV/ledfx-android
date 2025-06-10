@@ -24,13 +24,6 @@ Additionally, the foreground service is set to "sticky" which tells android to a
 
 See here for more details on working with services in python-for-android: https://python-for-android.readthedocs.io/en/latest/services.html
 
-### Android support of various LedFx dependencies
-
-LedFx imports a few libraries that aren't compatible with Android. To make things work without any upstream changes to LedFx, I created minimal mock versions of these libraries in the src directory with just enough content to make LedFx run. Exploiting Python's import search order, these mock libraries will be imported instead of the (nonexistent) real ones, with just enough functionality to make LedFx happy. This is not a great solution long-term but works for now.
-
-- rtmidi: Midi library for controlling devices connected to the computer via midi. Doesn't make sense to do this from Android TV devices. If upstream LedFx made libraries like this optional I wouldn't have to mock them here and everything would just work :)
-- mss: Screen grabber. No android support. Ideally, upstream LedFx would add a try/catch around their programmatic imports of devices and effects so anything that fails to import simply doesn't show up in the web UI dropdowns.
-
 ### Hostname resolution
 
 Some Android devices don't have mDNS support so auto discovery of WLED devices fails. I found that manually adding one by IP address works, then others are discovered and can be added as well. Could be helpful for upstream LedFx to fall back to IP address if hostname fails to resolve.
@@ -72,6 +65,7 @@ This repo includes a Github Action that will build an apk and trigger a new rele
 ## Future work
 
 - Support config file import/export. Currently doesn't work in Android webview.
+- Support microphone input
 - Improve LedFx Leanback Mode to allow more controls, like triggering LedFx Scenes or setting effects on known devices
 - Automatic detection of music/audio playing using [Android Visualizer peak/RMS measurement mode](https://developer.android.com/reference/android/media/audiofx/Visualizer#getMeasurementPeakRms(android.media.audiofx.Visualizer.MeasurementPeakRms)) to enable/disable LedFx effects
 
