@@ -3,9 +3,9 @@ from pythonforandroid.recipe import PyProjectRecipe
 
 class ZeroconfRecipe(PyProjectRecipe):
     name = 'zeroconf'
-    version = '0.146.1'
+    version = '0.147.0'
     url = 'https://github.com/jstasiak/python-zeroconf/archive/{version}.tar.gz'
-    md5 = '9a8a08184f942e6cae1384aef61f4ecb'
+    md5 = 'bda4260e155ce7f5d24b9d831d7a0f09'
     depends = ['setuptools', 'ifaddr']
 
 

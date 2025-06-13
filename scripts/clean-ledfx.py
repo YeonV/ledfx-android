@@ -3,11 +3,12 @@
 import pathlib
 import shutil
 
-root = pathlib.Path(__file__).parent.parent
+root = pathlib.Path(__file__).parent.parent.absolute()
 build_root = root / '.buildozer'
 
 patterns = [
-    'android/platform/build-*/build/other-builds/ledfx',
+    'android/app',
+    'android/platform/build-*/build/other_builds/ledfx',
     'android/platform/build-*/build/python-installs/ledfx/*/ledfx*',
     'android/platform/build-*/packages/ledfx',
     'android/platform/build-*/dists'
