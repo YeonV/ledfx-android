@@ -53,6 +53,10 @@ presplash.filename = %(requirements.source.ledfx)s/ledfx_assets/banner.png
 
 # (str) Icon of the application
 icon.filename =  %(requirements.source.ledfx)s/ledfx_assets/tray.png
+android.adaptive_icon_foreground = %(requirements.source.ledfx)s/ledfx_assets/tray.png
+android.adaptive_icon_background = '#222222'
+
+android.banner = %(requirements.source.ledfx)s/ledfx_assets/tray.png
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
@@ -108,6 +112,7 @@ android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, M
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
+android.features = android.hardware.microphone
 
 # (int) Target Android API, should be as high as possible.
 #android.api = 31
