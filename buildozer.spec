@@ -112,7 +112,7 @@ android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, M
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
-android.features = android.hardware.microphone
+#android.features = android.hardware.microphone
 
 # (int) Target Android API, should be as high as possible.
 #android.api = 31
