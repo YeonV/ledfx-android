@@ -52,9 +52,9 @@ version.filename = %(requirements.source.ledfx)s/ledfx/consts.py
 presplash.filename = %(requirements.source.ledfx)s/ledfx_assets/banner.png
 
 # (str) Icon of the application
-icon.filename =  %(requirements.source.ledfx)s/ledfx_assets/tray.png
-android.adaptive_icon_foreground = %(requirements.source.ledfx)s/ledfx_assets/tray.png
-android.adaptive_icon_background = '#222222'
+icon.filename =  img/icon.png
+android.adaptive_icon_foreground = img/icon_foreground.png
+android.adaptive_icon_background = img/icon_background.png
 
 android.banner = %(requirements.source.ledfx)s/ledfx_assets/tray.png
 
@@ -108,7 +108,7 @@ android.presplash_color = #000000
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions.html for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, CAMERA
+android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, CAMERA, REQUEST_INSTALL_PACKAGES
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
