@@ -2,11 +2,15 @@
 # Requests permissions and kicks off LedFx service
 
 import logging
+import sys
 import time
 import threading
 
 from jnius import autoclass, cast, java_method, PythonJavaClass
+from android.broadcast import BroadcastReceiver
 from android.permissions import check_permission, request_permissions, Permission
+
+from ports import EXIT_APP_ACTION
 
 logger = logging.getLogger('ledfx-android')
 
@@ -29,6 +33,16 @@ def main():
     args = ''
     service = autoclass('com.ledfx.ledfx.ServiceLedfx')
     service.start(mActivity, small_icon, title, content, args)
+
+    def exit_handler(context, intent):
+        logger.info('Received exit signal. Stopping service and exiting.')
+        # ServiceLedfx.stop() targets the generated class, so this actually
+        # stops the running service.
+        service.stop(mActivity)
+        mActivity.finish()
+        sys.exit()
+
+    BroadcastReceiver(exit_handler, actions=[EXIT_APP_ACTION]).start()
 
     # Sleep this thread to let webview UI run while foreground service is running
     while True:
