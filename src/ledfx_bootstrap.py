@@ -4,6 +4,7 @@
 import logging
 import os
 import sys
+import time
 
 from android.storage import app_storage_path
 from jnius import autoclass
@@ -11,6 +12,10 @@ from jnius import autoclass
 from ports import EXIT_APP_ACTION, WEBVIEW_PORT
 
 logger = logging.getLogger('ledfx-android')
+
+# How long the service waits, after asking the activity to shut things down,
+# before giving up and returning. See the note in start_ledfx().
+EXIT_HANDOFF_TIMEOUT = 5
 
 
 def start_ledfx():
@@ -40,6 +45,19 @@ def start_ledfx():
     else:
         logger.info('LedFx exited cleanly. Signaling main activity to exit.')
         signal_main_activity_to_exit()
+
+        # The service is declared sticky, so if we simply return here the OS
+        # relaunches LedFx. Only an explicit stopService() clears that, so stay
+        # alive until the activity's stop lands. This sleep normally does not
+        # finish - the process is killed part-way through it - so the cost is
+        # zero on the happy path. Reaching the line below means the handoff
+        # failed and we fall back to the old (sticky-restart) behaviour.
+        time.sleep(EXIT_HANDOFF_TIMEOUT)
+        logger.warning(
+            'Activity did not stop the service within %ss; returning anyway. '
+            'The sticky flag will likely restart LedFx.',
+            EXIT_HANDOFF_TIMEOUT,
+        )
 
 
 def signal_main_activity_to_exit():
