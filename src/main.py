@@ -53,8 +53,16 @@ def validate_permissions():
     """Ensures all required permissions have been granted. If no, request them. If user denies, show a toast and shut down app.
     """
     
+    # Nothing to ask for means nothing to wait for. Requesting anyway makes
+    # Android answer instantly ("No requestable permission in the request"),
+    # which is the timing that used to lose the callback and hang the app on
+    # the splash screen for every user who updated rather than reinstalled.
+    if all(check_permission(p) for p in permissions_list):
+        logger.info('All required permissions already granted.')
+        return
+
     event = threading.Event()
-    
+
     def permissions_callback(permissions, results):
         # Ensure we have all required permissions to run LedFx
         if not all(results):
@@ -80,8 +88,12 @@ def validate_permissions():
         permissions_callback
     )
     
-    # Wait for user to respond to permission requests
-    event.wait()
+    # Wait for user to respond to permission requests.
+    # Bounded on purpose: a callback that never arrives must not strand the app
+    # on the splash screen with no diagnostics. Starting LedFx without a
+    # permission degrades a feature; blocking here loses the whole app.
+    if not event.wait(timeout=120):
+        logger.warning('Timed out waiting for permission result; starting anyway.')
     
 
 if __name__ == '__main__':
