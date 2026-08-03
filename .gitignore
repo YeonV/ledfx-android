@@ -3,3 +3,14 @@ bin
 __pycache__
 .DS_Store
 /*.log
+
+# Packaged output. Builds belong on the releases page, not in the repo -
+# a stray APK here is ~55MB.
+*.apk
+*.aab
+
+# Logs kept from local buildozer runs. /*.log above misses these because
+# they are .txt.
+/log.txt
+/filtered-log.txt
+/py-errors.txt
