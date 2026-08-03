@@ -13,6 +13,22 @@ class LedFxRecipe(PyProjectRecipe):
     """
     name = 'ledfx'
 
+    def check_prebuilt(self, arch, msg=""):
+        """
+        Never satisfy this recipe from PyPI.
+
+        p4a's prebuilt lookup asks pip whether a wheel already exists and, if so,
+        installs that instead of building. This recipe has no version pin (the
+        source is whatever sits in deps/ledfx), so the query goes out as a bare
+        `ledfx`, matches the pure-python py3-none-any wheel published on PyPI,
+        and silently replaces the local checkout with an unrelated release.
+
+        That shipped LedFx 2.0.90 inside a 2.1.6020 APK, which then died on
+        import with "No module named 'pkg_resources'" and left the app hanging
+        on the splash screen.
+        """
+        return False
+
     depends = [
         'numpy',
         'aiohttp',
