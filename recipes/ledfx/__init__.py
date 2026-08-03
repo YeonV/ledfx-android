@@ -39,7 +39,11 @@ class LedFxRecipe(PyProjectRecipe):
         'samplerate-ledfx',
         'requests',
         'netifaces',
-        'vnoise'
+        'vnoise',
+        # Imported at startup by ledfx/core.py. Has to be a recipe rather than a
+        # python_depends entry - it declares requires-python <3.14 and pip would
+        # reject it. See recipes/audio-hotplug/__init__.py.
+        'audio-hotplug'
     ]
     
     python_depends = [
