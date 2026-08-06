@@ -18,11 +18,65 @@ logger = logging.getLogger('ledfx-android')
 EXIT_HANDOFF_TIMEOUT = 5
 
 
+def use_bundled_certificates():
+    """Make every default SSL context trust certifi's CA bundle.
+
+    Android ships no CA store this OpenSSL build can read, so on a phone every
+    outbound HTTPS request fails with CERTIFICATE_VERIFY_FAILED - failing
+    album-art lookups being the visible symptom.
+
+    Setting SSL_CERT_FILE is *not* enough here: measured on device, a context
+    built after setting it still has an empty trust store, because
+    set_default_verify_paths() does not load anything in this build. Only an
+    explicit load_verify_locations() works, so default_certs loading is
+    extended to do exactly that. The env var is set as well, for child
+    processes and any library that reads it directly.
+
+    Timing is the other half: aiohttp builds its default SSL context once, at
+    import, and reuses it for every session afterwards. Run this before the
+    ledfx import or it has no effect at all.
+    """
+    try:
+        import certifi
+    except ImportError:
+        logger.warning('certifi not bundled; HTTPS requests will fail to verify')
+        return
+
+    cafile = certifi.where()
+    if not os.path.isfile(cafile):
+        logger.warning('certifi bundle missing at %s', cafile)
+        return
+
+    import ssl
+
+    os.environ.setdefault('SSL_CERT_FILE', cafile)
+
+    if getattr(ssl.SSLContext, '_ledfx_certifi_patched', False):
+        return
+
+    original = ssl.SSLContext.load_default_certs
+
+    def load_default_certs(self, purpose=ssl.Purpose.SERVER_AUTH):
+        original(self, purpose)
+        try:
+            self.load_verify_locations(cafile=cafile)
+        except Exception:
+            logger.exception('Could not load bundled CA certificates')
+
+    ssl.SSLContext.load_default_certs = load_default_certs
+    ssl.SSLContext._ledfx_certifi_patched = True
+    logger.info('Default SSL contexts now trust %s', cafile)
+
+
 def start_ledfx():
     
     os.name = 'posix'  # Force os.name to 'posix' for compatibility
     sys.platform = 'linux'  # Force sys.platform to 'linux' for compatibility
-    
+
+    # Must precede the ledfx import: it pulls in aiohttp, which caches its
+    # default SSL context on the way in.
+    use_bundled_certificates()
+
     from ledfx.__main__ import main as ledfx_main
     
     # Reduce logging of noisy modules
