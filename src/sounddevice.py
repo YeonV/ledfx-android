@@ -8,11 +8,23 @@ import numpy as np
 from android_visualizer import AndroidVisualizer
 from android_audiorecord import AndroidAudioRecord
 
-CAPTURE_RATE_DEFAULT = 60
+try:
+    from android_playback_capture import AndroidPlaybackCapture
+except Exception as _exc:  # pragma: no cover - API 29+ only
+    AndroidPlaybackCapture = None
+
+# The Visualizer's buffer only refreshes about 20 times a second
+# (getMaxCaptureRate reports 20000 mHz). Polling faster than that returns
+# byte-identical frames - measured ~48% duplicates at 47 Hz and ~80% at 127 Hz -
+# while making the timing markedly worse (jitter sd 6 ms -> 30 ms). 30 Hz is
+# comfortably above the refresh without burning the battery for nothing.
+CAPTURE_RATE_DEFAULT = 30
 
 logger = logging.getLogger(__name__)
 
 devices_apis = (AndroidVisualizer, AndroidAudioRecord)
+if AndroidPlaybackCapture is not None and AndroidPlaybackCapture.is_supported():
+    devices_apis = devices_apis + (AndroidPlaybackCapture,)
 
 
 class default:
@@ -62,6 +74,14 @@ def query_hostapis(*args, **kwargs):
                 'devices': [0],
                 'default_input_device': 0,
                 'default_output_device': -1
+            },
+            {
+                'name': (AndroidPlaybackCapture.hostapi
+                         if AndroidPlaybackCapture is not None
+                         else 'Android PlaybackCapture API (unavailable)'),
+                'devices': [0],
+                'default_input_device': 0,
+                'default_output_device': -1
             }
         ]
     )
@@ -82,6 +102,17 @@ def query_devices(*args, **kwargs):
         devices.append(info)
     except Exception as e:
         logger.error(e)
+
+    # Advertised from class metadata rather than by constructing it: building
+    # one needs a MediaProjection, and device enumeration runs whenever the
+    # settings page loads. Consent is requested from the UI instead.
+    if AndroidPlaybackCapture is not None and AndroidPlaybackCapture.is_supported():
+        devices.append({
+            'name': AndroidPlaybackCapture.name,
+            'hostapi': 2,
+            'max_input_channels': AndroidPlaybackCapture.channels,
+            'default_samplerate': AndroidPlaybackCapture.sampling_rate,
+        })
 
     return tuple(devices)
 
@@ -121,7 +152,16 @@ class InputStream(Thread):
 
         while self._should_run:  # outer while loop to keep trying to connect to visualizer in case something goes wrong
             try:
-                with self.device(capture_size=self.blocksize) as dev:
+                # The Visualizer only accepts powers of two inside
+                # getCaptureSizeRange(). LedFx asks for samplerate/fps - 800 at
+                # 48 kHz - which always threw IllegalArgumentException and fell
+                # back to the maximum, so snap it up front instead.
+                requested_size = self.blocksize
+                if getattr(self.device, 'hostapi', '') == AndroidVisualizer.hostapi:
+                    power_of_two = 1 << (int(requested_size) - 1).bit_length()
+                    requested_size = max(128, min(1024, power_of_two))
+
+                with self.device(capture_size=requested_size) as dev:
                     
                     if self.samplerate is not None and dev.sampling_rate != self.samplerate:
                         logger.warning(f'Unsupported sampling rate {self.samplerate} requested from {type(dev).__name__}. Actual sample rate is {dev.sampling_rate}')
@@ -137,14 +177,24 @@ class InputStream(Thread):
                     while self._should_run:
                         last_run = time.time()
 
-                        # convert PCM data range [0, 255] to PortAudio float range [-1.0, 1.0]
-                        data = np.array(dev.waveform, dtype=self.dtype) / 128.0 - 1.0
+                        # 16-bit sources hand back little-endian shorts; the
+                        # Visualizer hands back unsigned bytes centred on 128.
+                        # np.array() must be given the bytearray itself - passing
+                        # bytes() makes numpy read it as a string scalar and raise.
+                        if getattr(dev, 'pcm_bits', 8) == 16:
+                            data = np.frombuffer(
+                                bytes(dev.waveform), dtype='<i2'
+                            ).astype(self.dtype) / 32768.0
+                        else:
+                            data = np.array(dev.waveform, dtype=self.dtype) / 128.0 - 1.0
                         
                         if need_buffer:
                             buffer[:dev.capture_size] = data  # copy captured data to buffer
                             data = buffer  # use buffer as data to pass to callback
-                        else:
-                            data = data[:self.blocksize]  # make sure we're only passing the requested blocksize to callback
+                        # No truncation. LedFx's callback resamples whatever
+                        # length it is given down to MIC_RATE // sample_rate, so
+                        # cutting 1024 samples back to 800 threw away 22% of
+                        # every capture for no benefit.
                         
                         # call stream_callback with converted data
                         if self.callback:
@@ -155,8 +205,13 @@ class InputStream(Thread):
                                 status=None
                             )
 
-                        # sleep some amount of time (constrained between 0 and 1 sec) to try to achieve desired capture rate
-                        time.sleep(min(1, max(0, 1/self.capture_rate - (time.time() - last_run))))
+                        # Devices whose read() blocks until a block is ready
+                        # pace themselves - throttling on top of that only adds
+                        # latency and makes the pump drop blocks we already
+                        # paid for. Only the Visualizer, which is polled, needs
+                        # a sleep here.
+                        if not getattr(dev, 'paces_itself', False):
+                            time.sleep(min(1, max(0, 1/self.capture_rate - (time.time() - last_run))))
 
             except Exception as e:
                 logger.error('Error in audio capture/update loop. Attempting to restart input device.')
