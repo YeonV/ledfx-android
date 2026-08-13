@@ -13,6 +13,12 @@ try:
 except Exception as _exc:  # pragma: no cover - API 29+ only
     AndroidPlaybackCapture = None
 
+try:
+    from android_remote_submix import AndroidRemoteSubmix
+except Exception as _exc:  # pragma: no cover - needs jnius/AudioRecord
+    AndroidRemoteSubmix = None
+    logging.getLogger(__name__).warning('RemoteSubmix import failed: %r', _exc, exc_info=True)
+
 # The Visualizer's buffer only refreshes about 20 times a second
 # (getMaxCaptureRate reports 20000 mHz). Polling faster than that returns
 # byte-identical frames - measured ~48% duplicates at 47 Hz and ~80% at 127 Hz -
@@ -25,6 +31,8 @@ logger = logging.getLogger(__name__)
 devices_apis = (AndroidVisualizer, AndroidAudioRecord)
 if AndroidPlaybackCapture is not None and AndroidPlaybackCapture.is_supported():
     devices_apis = devices_apis + (AndroidPlaybackCapture,)
+if AndroidRemoteSubmix is not None and AndroidRemoteSubmix.is_supported():
+    devices_apis = devices_apis + (AndroidRemoteSubmix,)
 
 
 class default:
@@ -82,6 +90,14 @@ def query_hostapis(*args, **kwargs):
                 'devices': [0],
                 'default_input_device': 0,
                 'default_output_device': -1
+            },
+            {
+                'name': (AndroidRemoteSubmix.hostapi
+                         if AndroidRemoteSubmix is not None
+                         else 'Android RemoteSubmix API (unavailable)'),
+                'devices': [0],
+                'default_input_device': 0,
+                'default_output_device': -1
             }
         ]
     )
@@ -112,6 +128,17 @@ def query_devices(*args, **kwargs):
             'hostapi': 2,
             'max_input_channels': AndroidPlaybackCapture.channels,
             'default_samplerate': AndroidPlaybackCapture.sampling_rate,
+        })
+
+    # Gated on the privileged permission actually having been granted, same
+    # reasoning as PlaybackCapture above: advertised from class metadata, not
+    # by constructing it, since enumeration runs on every settings page load.
+    if AndroidRemoteSubmix is not None and AndroidRemoteSubmix.is_supported():
+        devices.append({
+            'name': AndroidRemoteSubmix.name,
+            'hostapi': 3,
+            'max_input_channels': AndroidRemoteSubmix.channels,
+            'default_samplerate': AndroidRemoteSubmix.sampling_rate,
         })
 
     return tuple(devices)

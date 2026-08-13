@@ -47,7 +47,19 @@ def use_bundled_certificates():
         logger.warning('certifi bundle missing at %s', cafile)
         return
 
-    import ssl
+    try:
+        import ssl
+    except ImportError:
+        # Seen on a systemized (priv-app) install: Python's _ssl.so was built
+        # against real OpenSSL, and a privileged app's linker namespace chains
+        # through to /system/lib - where Android's libcrypto.so is BoringSSL,
+        # a real API fork rather than a version bump (missing symbols like
+        # OPENSSL_sk_pop_free confirm it, not just an ABI skew). Whichever one
+        # ends up resident from zygote wins regardless of what the app bundles
+        # alongside it, so there is no bundled-library fix from here - only
+        # HTTPS verification degrades, not the rest of LedFx.
+        logger.warning('ssl unavailable (%s); HTTPS requests will fail to verify', cafile)
+        return
 
     os.environ.setdefault('SSL_CERT_FILE', cafile)
 
