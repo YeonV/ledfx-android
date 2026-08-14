@@ -9,17 +9,16 @@
 # LedFx has actually launched at least once. Patch them here instead, once
 # they show up.
 #
-# Job 2: a normal LedFx update (sideloaded from GitHub releases, not
-# through this module) creates a /data/app update layer that SHADOWS the
-# systemized /system/priv-app copy. Per Android's own security design, that
-# shadow layer never gets the privileged permission grant - only the
-# underlying /system-resident APK does (confirmed by hand: a plain
-# `pm install -r` update layer showed the permission requested but NOT
-# granted; only after `pm uninstall` reverted it back onto the system
-# baseline did `dumpsys package` show granted=true). Detect the shadow and
-# re-systemize automatically, so an ordinary LedFx update self-heals on the
-# next boot instead of silently losing root audio capture until someone
-# remembers to re-flash this module by hand.
+# Job 2: places the bundled permission-anchor stub (stub.apk - see
+# customize.sh) directly at /system/priv-app/LedFx in case the module's own
+# OverlayFS mount never actually applies. That's device-dependent: on at
+# least one test device, the mount never mounts at all (no metamodule
+# providing it), so this direct write is what actually makes systemization
+# happen there. Cheap and unconditional since the stub is tiny and static -
+# unlike an earlier version of this job, which copied the real, currently-
+# installed LedFx APK and its native libs into place and had to detect
+# "shadowing" updates to stay in sync. A stub never goes stale, so there is
+# nothing to detect or resync here anymore.
 
 MODDIR="${0%/*}"
 . "$MODDIR/common.sh"
@@ -31,61 +30,77 @@ PKG="com.ledfx.ledfx"
 # requirement.
 sleep 15
 
+# Which install pm actually resolves to right now - Job 1 keys off this.
+ACTIVE_PATH=$(pm path "$PKG" 2>/dev/null | sed 's/^package://')
+
 # --- Job 1: patch the private-storage ssl modules, if present ---
+#
+# Only when the systemized copy is the one pm actually resolves to. The
+# renamed libssx.so/libcryptx.so only exist under that copy's own
+# lib/arm/, and the private module's dlopen only ever searches its own
+# app's native-lib directory - a privileged SELinux context does NOT
+# expand the linker namespace to reach /system/lib or another app's
+# directory (confirmed by hand: publishing the renamed libs to
+# /system/lib made no difference, the crash was identical). So if pm
+# still resolves to the /data/app update layer - which happens on at
+# least one test device even *after* the privileged permission is
+# granted via the system baseline underneath it - renaming here would
+# leave the private module needing a library its own namespace can never
+# find. Skip it in that case and let the module keep using stock
+# libssl.so/libcrypto.so, which works fine as long as this app's own
+# namespace never actually escalates to one that can see a conflicting
+# system-side OpenSSL - reproduced and confirmed working by hand.
 DATADIR="/data/user/0/$PKG/files/app/_python_bundle/modules"
 SSL_SO=$(ls "$DATADIR"/_ssl.cpython-*.so 2>/dev/null | head -1)
 HASHLIB_SO=$(ls "$DATADIR"/_hashlib.cpython-*.so 2>/dev/null | head -1)
 
-if [ -n "$SSL_SO" ]; then
-  OWNER=$(stat -c '%u:%g' "$SSL_SO" 2>/dev/null)
-  patch_elf_string "$SSL_SO" "libssl.so"    "libssx.so"
-  patch_elf_string "$SSL_SO" "libcrypto.so" "libcryptx.so"
-  [ -n "$OWNER" ] && chown "$OWNER" "$SSL_SO"
-fi
-if [ -n "$HASHLIB_SO" ]; then
-  OWNER=$(stat -c '%u:%g' "$HASHLIB_SO" 2>/dev/null)
-  patch_elf_string "$HASHLIB_SO" "libcrypto.so" "libcryptx.so"
-  [ -n "$OWNER" ] && chown "$OWNER" "$HASHLIB_SO"
-fi
-
-# --- Job 2: self-heal a shadowing update ---
-ACTIVE_PATH=$(pm path "$PKG" 2>/dev/null | sed 's/^package://')
 case "$ACTIVE_PATH" in
-  /system/priv-app/LedFx/*|"")
-    # Already the systemized copy, or the package didn't resolve (e.g. not
-    # installed at all) - nothing to heal either way.
-    ;;
-  *)
-    log -t LedFxRootAudio "Detected shadowing update at $ACTIVE_PATH, re-systemizing"
-
-    DEST="/system/priv-app/LedFx"
-    mkdir -p "$DEST/lib/arm"
-    cp -f "$ACTIVE_PATH" "$DEST/LedFx.apk"
-
-    UNPACK="/data/local/tmp/.ledfx_rootaudio_unpack"
-    rm -rf "$UNPACK"; mkdir -p "$UNPACK"
-    unzip -oq "$DEST/LedFx.apk" "lib/armeabi-v7a/*" -d "$UNPACK"
-    cp -f "$UNPACK"/lib/armeabi-v7a/*.so "$DEST/lib/arm/"
-    rm -rf "$UNPACK"
-
-    patch_ssl_libs "$DEST/lib/arm"
-
-    chown -R 0:0 "$DEST"
-    find "$DEST" -type d -exec chmod 0755 {} \;
-    find "$DEST" -type f -exec chmod 0644 {} \;
-
-    # Force PackageManager to notice the changed priv-app content (it caches
-    # by default and won't re-scan on its own), then immediately revert the
-    # resulting update layer back onto the system baseline - that revert is
-    # what actually grants the privileged permission, not the install.
-    pm install -r "$DEST/LedFx.apk" >/dev/null 2>&1
-    pm uninstall "$PKG" >/dev/null 2>&1
-
-    # The new version's _ssl.so/_hashlib.so will not exist until LedFx is
-    # launched at least once, and will not be patched until the boot after
-    # that - Job 1 above picks them up automatically once they appear, same
-    # as it does after a fresh module install. No further action needed
-    # here.
-    log -t LedFxRootAudio "Re-systemize complete"
+  /system/priv-app/LedFx/*)
+    if [ -n "$SSL_SO" ]; then
+      OWNER=$(stat -c '%u:%g' "$SSL_SO" 2>/dev/null)
+      patch_elf_string "$SSL_SO" "libssl.so"    "libssx.so"
+      patch_elf_string "$SSL_SO" "libcrypto.so" "libcryptx.so"
+      [ -n "$OWNER" ] && chown "$OWNER" "$SSL_SO"
+    fi
+    if [ -n "$HASHLIB_SO" ]; then
+      OWNER=$(stat -c '%u:%g' "$HASHLIB_SO" 2>/dev/null)
+      patch_elf_string "$HASHLIB_SO" "libcrypto.so" "libcryptx.so"
+      [ -n "$OWNER" ] && chown "$OWNER" "$HASHLIB_SO"
+    fi
     ;;
 esac
+
+# --- Job 2: make sure the permission-anchor stub is in place ---
+DEST="/system/priv-app/LedFx"
+STUB="$MODDIR/stub.apk"
+
+if [ ! -f "$STUB" ]; then
+  log -t LedFxRootAudio "stub.apk missing from module dir, nothing to do"
+elif ! cmp -s "$STUB" "$DEST/LedFx.apk" 2>/dev/null; then
+  mount -o remount,rw / 2>/dev/null
+
+  mkdir -p "$DEST"
+  cp -f "$STUB" "$DEST/LedFx.apk"
+
+  if [ ! -s "$DEST/LedFx.apk" ]; then
+    log -t LedFxRootAudio "Could not write $DEST/LedFx.apk (still read-only?)"
+  else
+    chown 0:0 "$DEST/LedFx.apk"
+    chmod 0644 "$DEST/LedFx.apk"
+
+    mkdir -p /system/etc/permissions
+    cat > /system/etc/permissions/privapp-permissions-ledfx.xml <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <privapp-permissions package="$PKG">
+        <permission name="android.permission.CAPTURE_AUDIO_OUTPUT" />
+        <permission name="android.permission.QUERY_AUDIO_STATE" />
+    </privapp-permissions>
+</permissions>
+EOF
+    chown 0:0 /system/etc/permissions/privapp-permissions-ledfx.xml
+    chmod 0644 /system/etc/permissions/privapp-permissions-ledfx.xml
+
+    log -t LedFxRootAudio "Stub placed at $DEST - takes effect after the next reboot"
+  fi
+fi

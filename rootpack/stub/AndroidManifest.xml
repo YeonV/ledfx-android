@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Not a real app. This manifest builds into a signed, code-free APK whose
+  only job is to exist at /system/priv-app - it declares the privileged
+  permissions and gets scanned by PackageManager at boot, but is never
+  executed (confirmed by hand: pm path always resolves to the real,
+  functional /data/app install, even once this is systemized). Signed with
+  the same production key as the real release builds, so it's permanently
+  valid as a permission anchor regardless of which LedFx version is
+  actually running - it never needs to change on a LedFx update the way a
+  full copy of the real APK would.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ledfx.ledfx"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="33" />
+
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
+    <uses-permission android:name="android.permission.QUERY_AUDIO_STATE" />
+
+    <application android:hasCode="false" />
+</manifest>

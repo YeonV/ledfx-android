@@ -1,16 +1,22 @@
 # LedFx Root Audio Capture - install-time setup
 #
-# Deliberately does NOT bundle a copy of the LedFx APK. It systemizes
-# whatever LedFx build the user already has installed from the normal
-# release channel (GitHub releases), because bundling our own copy would go
-# stale every LedFx release - we hit exactly that problem by hand during
-# development (the bundled OpenSSL's exact bytes differed between two
-# consecutive LedFx builds even at the same file size, so a pre-patched
-# copy from one build silently didn't match the next). Re-deriving from
-# whatever's actually installed means this can never go stale.
+# The system-resident copy is a bundled, code-free stub (stub.apk) - not a
+# copy of the real LedFx install. It only needs to exist as a signed,
+# privileged-permission-declaring anchor for PackageManager to recognize at
+# boot; it is never actually executed (confirmed by hand: pm path always
+# resolves to the real, functional /data/app install regardless, and the
+# privileged permission grant cascades down to it anyway). That means the
+# stub never goes stale across LedFx releases and never needs touching
+# again - unlike an earlier version of this module that copied the real
+# APK's native libs/Python bundle into place, which required renaming its
+# bundled OpenSSL to dodge a collision with the system's own BoringSSL, and
+# that rename had its own ordering bugs when it ran out of sync with the
+# real app's actual install state. None of that applies to a stub with no
+# code at all.
 #
-# service.sh repeats this same logic on every boot to self-heal after a
-# normal LedFx update - keep the two in sync if you change this file.
+# service.sh repeats the stub placement on every boot in case the module's
+# own OverlayFS mount never actually applies (device-dependent) - keep the
+# two in sync if you change this file.
 
 . "$MODPATH/common.sh"
 
@@ -38,24 +44,11 @@ done
 ui_print "- OK."
 
 DEST="$MODPATH/system/priv-app/LedFx"
-mkdir -p "$DEST/lib/arm"
+mkdir -p "$DEST"
 mkdir -p "$MODPATH/system/etc/permissions"
 
-ui_print "- Copying the APK..."
-cp -f "$APK_PATH" "$DEST/LedFx.apk"
-
-ui_print "- Extracting native libraries..."
-# A raw priv-app placement (as opposed to a normal pm install) does not
-# auto-extract native libs the way the package installer does - has to be
-# done by hand, once here and again in service.sh's self-heal path.
-UNPACK="$MODPATH/_unpack_tmp"
-rm -rf "$UNPACK"; mkdir -p "$UNPACK"
-unzip -oq "$DEST/LedFx.apk" "lib/armeabi-v7a/*" -d "$UNPACK"
-cp -f "$UNPACK"/lib/armeabi-v7a/*.so "$DEST/lib/arm/"
-rm -rf "$UNPACK"
-
-ui_print "- Patching the OpenSSL naming collision..."
-patch_ssl_libs "$DEST/lib/arm"
+ui_print "- Placing the permission-anchor stub..."
+cp -f "$MODPATH/stub.apk" "$DEST/LedFx.apk"
 
 ui_print "- Writing the privileged-permission whitelist..."
 cat > "$MODPATH/system/etc/permissions/privapp-permissions-ledfx.xml" <<EOF
