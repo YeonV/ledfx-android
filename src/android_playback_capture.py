@@ -200,7 +200,22 @@ class AndroidPlaybackCapture:
         b.setAudioFormat(audio_format)
         b.setBufferSizeInBytes(buffer_size)
         b.setAudioPlaybackCaptureConfig(capture_config)
-        self.recorder = b.build()
+        try:
+            self.recorder = b.build()
+        except Exception:
+            # A MediaProjection token dies the moment the OS-level session
+            # ends - e.g. the user tapping "Stop" on the system casting/
+            # recording notification - and there is no callback telling us
+            # that happened. Without clearing the cache here, every retry
+            # (and even a fresh consent grant via the Settings button, since
+            # _get_projection() checks this cache before ever looking at
+            # PythonService's result holder) fails the exact same way
+            # forever: AudioService logs "App passed invalid MediaProjection
+            # token" and build() throws. Clearing it means the next start()
+            # re-reads PythonService fresh, picking up a new grant if one has
+            # been made, or correctly reporting "no consent yet" if not.
+            type(self)._projection = None
+            raise
 
         self._waveform = bytearray(read_bytes)
         self.recorder.startRecording()

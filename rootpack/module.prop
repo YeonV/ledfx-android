@@ -1,0 +1,6 @@
+id=ledfx_loopback
+name=LedFx Loopback
+version=v1.0
+versionCode=1
+author=Blade (YeonV)
+description=Systemizes an already-installed LedFx as a privileged app so it can capture the full system audio mix (REMOTE_SUBMIX, "System Audio (root)") without a MediaProjection consent dialog and without app-level opt-outs. Requires LedFx already installed from the normal release channel. Self-heals across LedFx updates and reboots - see service.sh.

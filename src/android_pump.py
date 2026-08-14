@@ -41,10 +41,23 @@ def to_bytes(raw):
     """
     Normalise whatever pyjnius hands back for a Java byte[].
 
-    Depending on the pyjnius build this is either a bytes object or a list of
-    SIGNED ints, and bytearray() chokes on the negative values in the second
-    case. int8 -> raw bytes round-trips both without caring which we got.
+    Benchmarked on-device against the alternatives (numpy array construction,
+    array.array with/without masking, memoryview): memoryview isn't supported
+    at all here (raw doesn't expose the buffer protocol, so this is some kind
+    of list-like jnius wrapper, not a real buffer), and every approach that
+    iterates raw element-by-element in a Python-level loop (array.array with
+    an `x & 0xFF` generator) was consistently the slowest - confirming the
+    earlier finding that a manual masking loop is what made the first version
+    of this function fall behind the pump in real time.
+
+    bytes(raw) was both the fastest candidate AND, unexpectedly, never raised
+    - meaning raw's elements are already in valid 0..255 range on this
+    pyjnius build, so the numpy int8-overflow workaround this function used
+    to need isn't actually necessary here. numpy is kept only as a fallback
+    for a pyjnius build where bytes(raw) does raise (e.g. genuinely signed
+    -128..-1 values with no masking).
     """
-    if isinstance(raw, (bytes, bytearray)):
+    try:
         return bytes(raw)
-    return np.array(raw, dtype=np.int8).tobytes()
+    except (ValueError, TypeError):
+        return np.asarray(raw).astype(np.uint8).tobytes()

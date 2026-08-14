@@ -48,7 +48,10 @@ def get_android_visualizer_stream_info():
     # This function is cached so it will only be called once in the program lifecycle.
     with AndroidVisualizer() as av:
         return {
-            'name': av.name,
+            # Taps the currently-playing audio session, same as the other two
+            # Android capture paths and the desktop "[Loopback]" convention -
+            # AudioRecord is the only genuinely microphone (acoustic) input.
+            'name': f'{av.name} [Loopback]',
             'hostapi': 0,
             'max_input_channels': av.channels,
             'default_samplerate': av.sampling_rate
@@ -124,7 +127,7 @@ def query_devices(*args, **kwargs):
     # settings page loads. Consent is requested from the UI instead.
     if AndroidPlaybackCapture is not None and AndroidPlaybackCapture.is_supported():
         devices.append({
-            'name': AndroidPlaybackCapture.name,
+            'name': f'{AndroidPlaybackCapture.name} [Loopback]',
             'hostapi': 2,
             'max_input_channels': AndroidPlaybackCapture.channels,
             'default_samplerate': AndroidPlaybackCapture.sampling_rate,
@@ -135,7 +138,7 @@ def query_devices(*args, **kwargs):
     # by constructing it, since enumeration runs on every settings page load.
     if AndroidRemoteSubmix is not None and AndroidRemoteSubmix.is_supported():
         devices.append({
-            'name': AndroidRemoteSubmix.name,
+            'name': f'{AndroidRemoteSubmix.name} [Loopback]',
             'hostapi': 3,
             'max_input_channels': AndroidRemoteSubmix.channels,
             'default_samplerate': AndroidRemoteSubmix.sampling_rate,
@@ -214,7 +217,7 @@ class InputStream(Thread):
                             ).astype(self.dtype) / 32768.0
                         else:
                             data = np.array(dev.waveform, dtype=self.dtype) / 128.0 - 1.0
-                        
+
                         if need_buffer:
                             buffer[:dev.capture_size] = data  # copy captured data to buffer
                             data = buffer  # use buffer as data to pass to callback
@@ -222,7 +225,7 @@ class InputStream(Thread):
                         # length it is given down to MIC_RATE // sample_rate, so
                         # cutting 1024 samples back to 800 threw away 22% of
                         # every capture for no benefit.
-                        
+
                         # call stream_callback with converted data
                         if self.callback:
                             ret = self.callback(
