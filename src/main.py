@@ -2,6 +2,7 @@
 # Requests permissions and kicks off LedFx service
 
 import logging
+import os
 import sys
 import time
 import threading
@@ -18,6 +19,22 @@ permissions_list = [
     Permission.RECORD_AUDIO,
     Permission.CAMERA,
 ]
+
+
+def _write_boot_stage(stage):
+    """Splash-screen progress marker, written from the Activity process.
+
+    Permission prompts happen here, before the :service_ledfx process (and
+    LedFxCore, which has its own _write_boot_stage) even exists - so this
+    can't go through core.py. Same file, same convention, same Java bridge
+    (getBootStatus()) reads whichever process wrote most recently."""
+    try:
+        mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+        files_dir = mActivity.getFilesDir().getAbsolutePath()
+        with open(os.path.join(files_dir, 'boot_status.txt'), 'w') as f:
+            f.write(stage)
+    except Exception:
+        pass
 
 
 def main():
@@ -60,6 +77,8 @@ def validate_permissions():
     if all(check_permission(p) for p in permissions_list):
         logger.info('All required permissions already granted.')
         return
+
+    _write_boot_stage('requesting_permissions')
 
     event = threading.Event()
 
