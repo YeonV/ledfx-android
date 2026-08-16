@@ -218,6 +218,28 @@ def cmd_stub(args) -> None:
     print("   installed")
 
 
+def cmd_file(args) -> None:
+    """Push a single edited local file over its counterpart in the bundle.
+
+    For iterating on ledfx core itself (virtuals.py, effects/, ...), not just
+    third-party deps - push/stub only ever add or fake whole packages.
+    DEST is the path relative to site-packages, e.g. ledfx/virtuals.py.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        dest_parts = args.dest.replace("\\", "/").split("/")
+        staged = os.path.join(tmp, *dest_parts)
+        os.makedirs(os.path.dirname(staged), exist_ok=True)
+        shutil.copyfile(args.local_path, staged)
+        print(f"-> {args.local_path} -> {args.dest}")
+        # push_tree walks local_dir's IMMEDIATE children and lets tarfile.add
+        # recurse each one - so it must be handed the outer tmp dir (which
+        # contains the first path segment, e.g. "ledfx/"), never the innermost
+        # directory the file itself sits in, or the leading path segments get
+        # silently dropped on extraction.
+        push_tree(tmp)
+    print("   pushed")
+
+
 def cmd_restart(_args) -> None:
     adb("shell", f"am force-stop {PKG}")
     time.sleep(1)
@@ -308,6 +330,11 @@ def main() -> None:
     ss = sub.add_parser("stub", help="fake a module to test whether it is load-bearing")
     ss.add_argument("modules", nargs="+")
     ss.set_defaults(func=cmd_stub)
+
+    sf = sub.add_parser("file", help="push a single edited local file over the bundle")
+    sf.add_argument("local_path", metavar="LOCAL_PATH")
+    sf.add_argument("dest", metavar="DEST", help="path relative to site-packages, e.g. ledfx/virtuals.py")
+    sf.set_defaults(func=cmd_file)
 
     sub.add_parser("restart", help="force-stop and relaunch").set_defaults(func=cmd_restart)
 
