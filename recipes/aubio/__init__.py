@@ -9,7 +9,8 @@ class AubioRecipe(PyProjectRecipe):
     md5 = "4191c693e4944dfe49e7340b5be4e692"
     depends = ["numpy", "setuptools"]
     patches = [
-        'remove-external-deps.patch'  # removes macos platform specific cmake configs so cross compilation works from macos
+        'remove-external-deps.patch',  # removes macos platform specific cmake configs so cross compilation works from macos
+        'release-gil.patch',  # releases the GIL around each object's do() DSP call (python/lib/gen_code.py), so LedFx's render thread can run in parallel with audio analysis instead of blocking on it - see ledfx CLAUDE.md
     ]
 
 

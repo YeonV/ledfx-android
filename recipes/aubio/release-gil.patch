@@ -1,0 +1,22 @@
+diff --git a/python/lib/gen_code.py b/python/lib/gen_code.py
+index be7fec6..7c0e81b 100644
+--- a/python/lib/gen_code.py
++++ b/python/lib/gen_code.py
+@@ -458,7 +458,17 @@ Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
+         outputs = ", ".join(["self->%s" % p['name'] for p in self.do_outputs])
+         out += """
+
++    // androdev(ledfx): release the GIL around the actual DSP call. do_fn
++    // operates purely on C buffers already extracted from their owning
++    // Python objects above (self->{inputs}/{c_outputs}), so no PyObject
++    // access happens between BEGIN and END - this is the standard,
++    // CPython-documented pattern for a thread-safe, non-Python-touching C
++    // call. Lets a caller's other Python threads (e.g. a render loop) run
++    // in parallel with this DSP work instead of blocking on the GIL for
++    // its whole duration.
++    Py_BEGIN_ALLOW_THREADS
+     {do_fn}(self->o, {inputs}, {c_outputs});
++    Py_END_ALLOW_THREADS
+ """.format(
+         do_fn = do_fn,
+         inputs = inputs, c_outputs = c_outputs,
