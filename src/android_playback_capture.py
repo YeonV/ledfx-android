@@ -111,6 +111,18 @@ class AndroidPlaybackCapture:
 
     @classmethod
     def _get_projection(cls):
+        # Consumed here, not only from is_active()/the status endpoint: this
+        # is the code path that actually rebuilds the capture, and it must
+        # self-heal regardless of whether anything has polled status recently.
+        # Without this, a stop (revoke, or the user via the system status-bar
+        # control) followed by a fresh consent grant keeps handing back the
+        # same dead cached object forever - the exact "even a fresh consent
+        # grant... fails the exact same way forever" failure this class's
+        # docstring already described, just now actually fixed instead of
+        # only documented.
+        if cls.stopped_externally():
+            cls._projection = None
+
         if cls._projection is not None:
             return cls._projection
 
@@ -131,8 +143,59 @@ class AndroidPlaybackCapture:
 
         manager = service.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
         cls._projection = manager.getMediaProjection(result_code, result_data)
+        PythonService.watchProjectionStop(cls._projection)
         logger.info('PlaybackCapture: MediaProjection acquired')
         return cls._projection
+
+    @classmethod
+    def stopped_externally(cls):
+        """True once, consumed: whether the system has reported the session
+        ended since the last check.
+
+        Covers both causes the same way: the system dispatches onStop() to
+        every registered callback identically whether this app called
+        revoke() or the user stopped it via the system status-bar control -
+        see MediaProjection.java's MediaProjectionCallback.Stub in AOSP.
+        Consumed (not just read) so a single stop is only acted on once.
+        """
+        try:
+            PythonService = autoclass('org.kivy.android.PythonService')
+            return bool(PythonService.consumeProjectionStopped())
+        except Exception:
+            return False
+
+    @classmethod
+    def is_active(cls):
+        """True if a live, still-valid projection is currently held."""
+        if cls.stopped_externally():
+            cls._projection = None
+        return cls._projection is not None
+
+    @classmethod
+    def revoke(cls):
+        """Fully end the MediaProjection session - not just this class's
+        cached reference to it.
+
+        The token is consumed by this: resuming afterward needs a fresh
+        consent dialog, unlike switching to a different audio input and
+        back, which reuses the cached projection for free (see the class
+        docstring above _projection).
+        """
+        if cls._projection is not None:
+            try:
+                cls._projection.stop()
+            except Exception as exc:
+                logger.warning(
+                    'PlaybackCapture: error stopping projection: %s', exc
+                )
+            cls._projection = None
+        try:
+            PythonService = autoclass('org.kivy.android.PythonService')
+            PythonService.clearMediaProjection()
+        except Exception as exc:
+            logger.warning(
+                'PlaybackCapture: error clearing stored consent: %s', exc
+            )
 
     # ------------------------------------------------------------------
     def start(self):
