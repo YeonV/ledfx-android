@@ -179,6 +179,22 @@ class InputStream(Thread):
         """
         Threaded function that connects to Android Visualizer API and periodically captures waveform data of any playing audio.
         """
+        # This thread does both audio polling and the full analysis callback
+        # (aubio pitch/tempo/onset, FFT) synchronously, in-line - see the
+        # call to self.callback() below. At Android's default thread
+        # priority it competes for the CPU on equal footing with ordinary
+        # background workers, despite being the real-time half of an
+        # audio-reactive pipeline. THREAD_PRIORITY_AUDIO (-16) matches what
+        # AudioRecord already gets at the native layer. Same boost as the
+        # render thread and the asyncio event loop (see ledfx's virtuals.py
+        # and core.py).
+        try:
+            from jnius import autoclass
+
+            Process = autoclass('android.os.Process')
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+        except Exception:
+            logger.exception('Failed to raise audio capture thread priority')
 
         while self._should_run:  # outer while loop to keep trying to connect to visualizer in case something goes wrong
             try:
