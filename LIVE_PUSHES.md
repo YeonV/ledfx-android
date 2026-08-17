@@ -20,11 +20,10 @@ every `androdev.py file` invocation. Clear an entry (delete the line) once its
 change has actually landed in a real commit - don't just let this grow forever.
 
 ---
-- 2026-08-16T22:15:53.776Z `androdev.py file "Y:/tmp/virtuals_instrumented.py" "ledfx/virtuals.py"`
-- 2026-08-16T22:29:44.764Z `androdev.py file "Y:/tmp/main_instrumented.py" "ledfx/__main__.py"`
-- 2026-08-16T22:35:41.626Z `androdev.py file "Y:/tmp/virtuals_ondevice_current.py" "ledfx/virtuals.py"`
-- 2026-08-16T22:59:49.914Z `androdev.py file "Y:/tmp/core_instrumented.py" "ledfx/core.py"`
-- 2026-08-16T23:06:53.310Z `androdev.py file "Y:/tmp/events_instrumented.py" "ledfx/events.py"`
-- 2026-08-16T23:16:18.819Z `androdev.py file "Y:/tmp/melbank_instrumented.py" "ledfx/effects/melbank.py"`
-- 2026-08-16T23:39:26.850Z `androdev.py file "Y:/tmp/core_instrumented.py" "ledfx/core.py"`
-- 2026-08-16T23:49:32.009Z `androdev.py file "Y:/tmp/main2_instrumented.py" "ledfx/__main__.py"`
+<!-- All entries cleared 2026-08-17: virtuals.py/core.py priority boost -> thread_priority_boost.patch
+     (LedFx-Builds), __main__.py logging gate -> android_quiet_logging.patch, events.py/core.py/melbank.py
+     listener gating -> event_listener_gating.patch. The audio-analysis thread's own priority boost
+     (sounddevice.py, this repo's src/) was live-pushed before this file/hook existed, so it was never
+     logged here either - found only by diffing the on-device scratch copy against the real committed
+     source. Now committed directly to src/sounddevice.py. -->
+- (none currently outstanding)
