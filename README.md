@@ -60,7 +60,7 @@ See [here](https://github.com/kivy/buildozer) for more information on using the 
 
 ### Github Action
 
-This repo includes a Github Action that will build an apk and trigger a new release any time a tagged version is committed. See [.github/workflows/build-apk.yml](.github/workflows/build-apk.yml) for details.
+Android builds run from the [LedFx-Builds](https://github.com/YeonV/LedFx-Builds) repo: `BuildAndroidMatrix.yml` checks this repo out, clones LedFx core fresh into `deps/ledfx`, applies the `tools/*.patch` chain and builds the APK matrix. This repo no longer carries its own build workflow.
 
 ## Future work
 
