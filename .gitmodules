@@ -1,3 +1,0 @@
-[submodule "deps/ledfx"]
-	path = deps/ledfx
-	url = https://github.com/ledfx/ledfx
