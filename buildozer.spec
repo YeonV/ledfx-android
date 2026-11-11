@@ -69,7 +69,7 @@ orientation = landscape,portrait
 # launched. This is optionally followed by ":foreground" for foreground services or
 # ":foreground:sticky" for sticky foreground services. The default is a background service.
 # Bound services are not supported.
-services = ledfx:service.py:foreground:sticky:foregroundServiceType=mediaProjection
+services = ledfx:service.py:foreground:sticky:foregroundServiceType=mediaProjection|mediaPlayback
 
 #
 # OSX Specific
