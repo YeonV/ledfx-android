@@ -10,6 +10,9 @@
 # what actually reverts it - same remount-rw dance service.sh already does,
 # since / is read-only by default at this point regardless of any earlier
 # session.
+#
+# post-fs-data.sh's overlays need nothing here: they live in a tmpfs, so they
+# are simply not recreated on the next boot once the module is gone.
 
 mount -o remount,rw / 2>/dev/null
 rm -rf /system/priv-app/LedFx

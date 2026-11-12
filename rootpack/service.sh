@@ -10,11 +10,12 @@
 # they show up.
 #
 # Job 2: places the bundled permission-anchor stub (stub.apk - see
-# customize.sh) directly at /system/priv-app/LedFx in case the module's own
-# OverlayFS mount never actually applies. That's device-dependent: on at
-# least one test device, the mount never mounts at all (no metamodule
-# providing it), so this direct write is what actually makes systemization
-# happen there. Cheap and unconditional since the stub is tiny and static -
+# customize.sh) directly at /system/priv-app/LedFx if it is still missing.
+# Normally post-fs-data.sh's overlay has already put it there (then the cmp
+# below matches and this is a no-op); this direct write is only the fallback
+# for a device where that overlay failed but / can be remounted rw. On a
+# Pixel 8, / stays read-only after the remount, so there it can only log
+# the failure. Cheap and unconditional since the stub is tiny and static -
 # unlike an earlier version of this job, which copied the real, currently-
 # installed LedFx APK and its native libs into place and had to detect
 # "shadowing" updates to stay in sync. A stub never goes stale, so there is

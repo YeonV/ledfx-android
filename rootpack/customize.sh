@@ -14,9 +14,11 @@
 # real app's actual install state. None of that applies to a stub with no
 # code at all.
 #
-# service.sh repeats the stub placement on every boot in case the module's
-# own OverlayFS mount never actually applies (device-dependent) - keep the
-# two in sync if you change this file.
+# The system/ files staged here only reach /system if something mounts them.
+# KernelSU-Next 3.x leaves that to a metamodule, so post-fs-data.sh mounts
+# them itself on every boot when nothing else has; service.sh's direct write
+# is the last fallback, for a device where / can be remounted rw. Keep all
+# three in sync if you change the files placed here.
 
 . "$MODPATH/common.sh"
 
