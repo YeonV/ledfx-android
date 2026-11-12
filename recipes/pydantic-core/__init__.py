@@ -11,5 +11,12 @@ class PydanticcoreRecipe(RustCompiledComponentsRecipe):
     sha256sum = "10416c15b8839ecc4ef4d0885da76da6fd0f67333a0eb8aff6d93c4b8f2910fc"
     site_packages_name = "pydantic_core"
 
+    def get_recipe_env(self, arch, **kwargs):
+        env = super().get_recipe_env(arch, **kwargs)
+        # maturin cannot always infer the API level from the target and stops
+        # with "Failed to determine Android API level" (seen on armeabi-v7a).
+        env["ANDROID_API_LEVEL"] = str(self.ctx.ndk_api)
+        return env
+
 
 recipe = PydanticcoreRecipe()
