@@ -60,6 +60,12 @@ class LedFxRecipe(PyProjectRecipe):
         'paho-mqtt>=1.6.1,<2',
         # Keep aligned with recipes/pydantic-core, which builds the native module.
         'pydantic==2.13.5',
+        # pydantic's own requirements. python_depends are installed without
+        # their dependencies, so they must be listed here; a missing
+        # typing_extensions killed the service on import.
+        'typing-extensions>=4.14.1',
+        'annotated-types>=0.6.0',
+        'typing-inspection>=0.4.2',
         'pyserial>=3.5,<4',
         'icmplib>=3.0.4,<4',
         'certifi>=2025.4.26,<2026',
@@ -67,7 +73,7 @@ class LedFxRecipe(PyProjectRecipe):
         'webcolors>=24,<25',
         'packaging>=21,<22',
         'xled>=0.7.0',
-        'lifx-async>=5.1.0'
+        'lifx-async>=7.11.2'
     ]
 
 
