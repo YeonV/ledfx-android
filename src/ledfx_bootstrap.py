@@ -11,6 +11,12 @@ from jnius import autoclass
 
 from ports import EXIT_APP_ACTION, WEBVIEW_PORT
 
+# aiohttp's sendfile path sends a FileResponse's headers but no body on Android:
+# /api/assets/download answered Content-Length 119597 with 0 bytes, so album art
+# fell back to the logo; with sendfile off it delivers all 119597. aiohttp reads
+# this when its file response module is imported, so it is set before LedFx is.
+os.environ.setdefault('AIOHTTP_NOSENDFILE', '1')
+
 logger = logging.getLogger('ledfx-android')
 
 # How long the service waits, after asking the activity to shut things down,
