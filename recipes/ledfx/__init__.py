@@ -31,6 +31,9 @@ class LedFxRecipe(PyProjectRecipe):
 
     depends = [
         'numpy',
+        'pydantic-core',
+        'ledfx-senders',
+        'pyfastnoiselite-ledfx',
         'aiohttp',
         'aubio-ledfx',
         'zeroconf',
@@ -39,7 +42,6 @@ class LedFxRecipe(PyProjectRecipe):
         'samplerate-ledfx',
         'requests',
         'netifaces',
-        'vnoise',
         # Imported at startup by ledfx/core.py. Has to be a recipe rather than a
         # python_depends entry - it declares requires-python <3.14 and pip would
         # reject it. See recipes/audio-hotplug/__init__.py.
@@ -56,6 +58,8 @@ class LedFxRecipe(PyProjectRecipe):
         'aiohttp-cors>=0.8.1,<1',
         'voluptuous>=0.14.1,<1',
         'paho-mqtt>=1.6.1,<2',
+        # Keep aligned with recipes/pydantic-core, which builds the native module.
+        'pydantic==2.13.5',
         'pyserial>=3.5,<4',
         'icmplib>=3.0.4,<4',
         'certifi>=2025.4.26,<2026',
