@@ -86,14 +86,50 @@ def use_bundled_certificates():
     logger.info('Default SSL contexts now trust %s', cafile)
 
 
+class _AudioServiceHandle:
+    """What ledfx.audio_process expects back from a launcher."""
+
+    def __init__(self, service, context):
+        self._service = service
+        self._context = context
+
+    def is_alive(self):
+        return False
+
+    def join(self, timeout=None):
+        pass
+
+    def terminate(self):
+        self._service.stop(self._context)
+
+
+def use_audio_service():
+    """Start LedFx's audio process as the second Android service
+    (service_audio.py, its own process and interpreter) instead of
+    multiprocessing, which has no Python executable to spawn here."""
+    try:
+        from ledfx.audio_process import client
+    except ImportError:
+        return  # a core without the separate audio process
+
+    def launch(port, token):
+        service = autoclass('com.ledfx.ledfx.ServiceAudio')
+        context = autoclass('org.kivy.android.PythonService').mService
+        service.start(context, 'icon', 'LedFx', 'LedFx audio', f'{port} {token}')
+        return _AudioServiceHandle(service, context)
+
+    client.set_launcher(launch)
+
+
 def start_ledfx():
-    
+
     os.name = 'posix'  # Force os.name to 'posix' for compatibility
     sys.platform = 'linux'  # Force sys.platform to 'linux' for compatibility
 
     # Must precede the ledfx import: it pulls in aiohttp, which caches its
     # default SSL context on the way in.
     use_bundled_certificates()
+    use_audio_service()
 
     from ledfx.__main__ import main as ledfx_main
     

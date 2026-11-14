@@ -69,7 +69,7 @@ orientation = landscape,portrait
 # launched. This is optionally followed by ":foreground" for foreground services or
 # ":foreground:sticky" for sticky foreground services. The default is a background service.
 # Bound services are not supported.
-services = ledfx:service.py:foreground:sticky:foregroundServiceType=mediaProjection|mediaPlayback
+services = ledfx:service.py:foreground:sticky:foregroundServiceType=mediaProjection|mediaPlayback,audio:service_audio.py:foreground:foregroundServiceType=microphone|mediaProjection|mediaPlayback
 
 #
 # OSX Specific
@@ -108,7 +108,7 @@ android.presplash_color = #000000
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions.html for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, FOREGROUND_SERVICE_MEDIA_PROJECTION, CAMERA, REQUEST_INSTALL_PACKAGES, CAPTURE_AUDIO_OUTPUT, QUERY_AUDIO_STATE, CHANGE_WIFI_STATE, ACCESS_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE, WAKE_LOCK
+android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, FOREGROUND_SERVICE_MEDIA_PROJECTION, FOREGROUND_SERVICE_MICROPHONE, CAMERA, REQUEST_INSTALL_PACKAGES, CAPTURE_AUDIO_OUTPUT, QUERY_AUDIO_STATE, CHANGE_WIFI_STATE, ACCESS_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE, WAKE_LOCK
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
