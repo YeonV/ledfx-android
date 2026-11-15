@@ -20,6 +20,8 @@ import time
 import queue
 import logging
 import threading
+
+import numpy as np
 from jnius import autoclass
 
 import android_pump
@@ -39,11 +41,19 @@ class AndroidRemoteSubmix:
 
     name = 'System Audio (root)'
     hostapi = 'Android RemoteSubmix API'
+    # What LedFx gets: mono. The submix itself is captured in stereo so the
+    # echo keeps it; the analysis gets the downmix.
     channels = 1
+    capture_channels = 2
     sampling_rate = 48000
     pcm_bits = 16
     # read() blocks until a block is available, so the stream sets its own pace.
     paces_itself = True
+    # Silence written once ahead of the echo, so its track keeps a cushion
+    # instead of running near empty; and how far the echo may fall behind.
+    echo_prefill_ms = 60
+    echo_buffer_ms = 200
+    echo_queue_blocks = 4
 
     def __init__(self, session_id=0, capture_size=None):
         self.session_id = session_id
@@ -56,6 +66,7 @@ class AndroidRemoteSubmix:
         self._echo_queue = None
         self._echo_thread = None
         self._echo_stop = None
+        self._in_java = False
 
     def __enter__(self, *args, **kwargs):
         return self.start()
@@ -94,7 +105,8 @@ class AndroidRemoteSubmix:
         AudioSource = autoclass('android.media.MediaRecorder$AudioSource')
 
         audio_format = AudioFormat.ENCODING_PCM_16BIT
-        channels = AudioFormat.CHANNEL_IN_MONO
+        channels = AudioFormat.CHANNEL_IN_STEREO
+        frame_bytes = 2 * self.capture_channels
         self.buffer_size = AudioRecord.getMinBufferSize(
             self.sampling_rate, channels, audio_format
         )
@@ -109,7 +121,7 @@ class AndroidRemoteSubmix:
 
         # Ring buffer: two blocks. Enough to absorb a GC pause, and every extra
         # block of headroom is latency the audio has to sit through.
-        wanted = frames * 2 * 2  # 2 bytes/sample, 2 blocks
+        wanted = frames * frame_bytes * 2  # 2 blocks
         if wanted > self.buffer_size:
             self.buffer_size = wanted
 
@@ -130,12 +142,22 @@ class AndroidRemoteSubmix:
         # Read exactly one block per call. read() blocks until that many bytes
         # are available, which paces the stream at LedFx's frame rate while
         # staying gapless.
-        read_bytes = frames * 2
+        read_bytes = frames * frame_bytes
         self._waveform = bytearray(read_bytes)
         self.recorder.startRecording()
-        self._pump = android_pump.make_pump(self.recorder, read_bytes, 3)
 
-        self._track = self._start_loopback_track(AudioFormat, audio_format, channels)
+        # The track first: the pump plays it, and has to be given it before
+        # it starts.
+        self._track = self._start_loopback_track(AudioFormat, audio_format)
+        prefill_bytes = int(self.sampling_rate * self.echo_prefill_ms / 1000) * frame_bytes
+        self._pump, self._in_java = android_pump.make_echo_pump(
+            self.recorder, read_bytes, 3,
+            echo_track=self._track,
+            echo_prefill_bytes=prefill_bytes,
+            echo_queue_blocks=self.echo_queue_blocks,
+        )
+        if self._track is not None and not self._in_java:
+            self._start_python_echo(prefill_bytes)
 
         logger.debug(
             'RemoteSubmix started: quantum=%s frames/read=%s (%.1f ms) ring=%s bytes',
@@ -224,7 +246,7 @@ class AndroidRemoteSubmix:
             )
             return 'auto'
 
-    def _start_loopback_track(self, AudioFormat, audio_format, channels):
+    def _start_loopback_track(self, AudioFormat, audio_format):
         """
         REMOTE_SUBMIX is exclusive, not a tap: opening this AudioRecord makes
         Android's audio policy reroute STREAM_MUSIC away from the speaker and
@@ -234,15 +256,15 @@ class AndroidRemoteSubmix:
         the workaround - the user hears LedFx's echo instead of the original
         app's now-silent output.
 
-        USAGE_MEDIA was tried first and silently failed: it maps to
-        STREAM_MUSIC, the exact stream this device's audio policy redirects
-        into remote_submix while a capture client is open, so our own echo
-        landed right back in the same virtual sink instead of the speaker
-        (confirmed via dumpsys media.audio_flinger - our track's output
-        thread had an AUDIO_DEVICE_OUT_REMOTE_SUBMIX patch). STREAM_ALARM was
-        confirmed via dumpsys audio to still route to the physical speaker
-        under the same conditions, so USAGE_ALARM is used to escape the
-        redirect rather than fight it.
+        USAGE_MEDIA alone lands right back in the submix (confirmed via dumpsys
+        media.audio_flinger: our track on the AUDIO_DEVICE_OUT_REMOTE_SUBMIX
+        thread). Pinned to a real output with setPreferredDevice it does not:
+        on a Pixel 8 it plays on the deep-buffer-playback stream to the speaker,
+        the path music normally takes, while the source app stays on the
+        submix. That path matters for sound, not just routing: USAGE_ALARM,
+        the earlier escape, goes to SPEAKER_SAFE on the primary stream without
+        the device's speaker tuning and sounds like a cheap speaker driven too
+        hard. USAGE_ALARM stays as the fallback if pinning fails.
 
         Skipped when either the user has explicitly turned it off, or - on
         "auto", the default - a ROM/device is detected to already duplicate
@@ -264,77 +286,103 @@ class AndroidRemoteSubmix:
         if mode == 'on':
             logger.info('RemoteSubmix: echo forced ON by user setting')
         try:
-            AudioTrack = autoclass('android.media.AudioTrack')
-            AudioTrackBuilder = autoclass('android.media.AudioTrack$Builder')
             AudioAttributes = autoclass('android.media.AudioAttributes')
-            AudioAttributesBuilder = autoclass('android.media.AudioAttributes$Builder')
-            AudioFormatBuilder = autoclass('android.media.AudioFormat$Builder')
-
-            attrs = (
-                AudioAttributesBuilder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            )
-            fmt = (
-                AudioFormatBuilder()
-                .setEncoding(audio_format)
-                .setSampleRate(self.sampling_rate)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                .build()
-            )
-            min_buf = AudioTrack.getMinBufferSize(
-                self.sampling_rate, AudioFormat.CHANNEL_OUT_MONO, audio_format
-            )
-            # A ~40ms buffer (2 capture blocks) made sense for a low-latency
-            # tap, but this CPU can't keep the pipeline running in real time
-            # under load (Spotify decode + FFT/melbank + DDP output + this
-            # echo, all contending for 4 old cores under the GIL) - sized for
-            # low latency, it ran dry constantly, which is what "slow motion"
-            # actually was: not literal pitch-shift, just the AudioTrack
-            # starving and re-buffering over and over. Sizing for ~400ms of
-            # slack trades latency for room to survive a hiccup without
-            # running dry; for passively listening to music while LEDs react,
-            # that lag is not noticeable the way starving every few blocks is.
-            target_ms = 400
-            target_bytes = int(self.sampling_rate * target_ms / 1000) * 2  # 16-bit mono
-            echo_buffer_bytes = max(min_buf, target_bytes)
-            track = (
-                AudioTrackBuilder()
-                .setAudioAttributes(attrs)
-                .setAudioFormat(fmt)
-                .setBufferSizeInBytes(echo_buffer_bytes)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-            )
+            device = self._output_device()
+            if device is not None:
+                track = self._build_track(
+                    AudioFormat, audio_format, AudioAttributes.USAGE_MEDIA
+                )
+                if track.setPreferredDevice(device):
+                    track.play()
+                    logger.info(
+                        'RemoteSubmix echo: media path, pinned to output type %s',
+                        device.getType(),
+                    )
+                    return track
+                track.release()
+                logger.warning('RemoteSubmix echo: could not pin to an output, using the alarm path')
+            track = self._build_track(AudioFormat, audio_format, AudioAttributes.USAGE_ALARM)
             track.play()
-
-            # Queue sized to match: enough blocks in flight that the worker
-            # falling behind under contention drains a backlog instead of
-            # immediately dropping blocks (which just starves the track
-            # faster). Read_bytes isn't set yet at this point in start(), so
-            # frames_per_read (set just above the call into here) is used.
-            block_ms = 1000.0 * self.frames_per_read / self.sampling_rate
-            queue_len = max(4, int(target_ms / block_ms))
-
-            self._echo_stop = threading.Event()
-            self._echo_queue = queue.Queue(maxsize=queue_len)
-            self._echo_thread = threading.Thread(
-                target=self._echo_worker, name='RemoteSubmixEcho', daemon=True
-            )
-            self._echo_thread.start()
-
-            logger.debug(
-                'RemoteSubmix loopback AudioTrack started (min_buf=%s buffer=%s queue=%s blocks)',
-                min_buf, echo_buffer_bytes, queue_len,
-            )
+            logger.info('RemoteSubmix echo: alarm path')
             return track
         except Exception:
             logger.exception('Could not start RemoteSubmix loopback playback; '
                               'speaker will stay silent while capturing')
             return None
 
+    def _build_track(self, AudioFormat, audio_format, usage):
+        AudioTrack = autoclass('android.media.AudioTrack')
+        AudioTrackBuilder = autoclass('android.media.AudioTrack$Builder')
+        AudioAttributes = autoclass('android.media.AudioAttributes')
+        AudioAttributesBuilder = autoclass('android.media.AudioAttributes$Builder')
+        AudioFormatBuilder = autoclass('android.media.AudioFormat$Builder')
+
+        attrs = (
+            AudioAttributesBuilder()
+            .setUsage(usage)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        )
+        fmt = (
+            AudioFormatBuilder()
+            .setEncoding(audio_format)
+            .setSampleRate(self.sampling_rate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+            .build()
+        )
+        min_buf = AudioTrack.getMinBufferSize(
+            self.sampling_rate, AudioFormat.CHANNEL_OUT_STEREO, audio_format
+        )
+        frame_bytes = 2 * self.capture_channels
+        wanted = int(self.sampling_rate * self.echo_buffer_ms / 1000) * frame_bytes
+        return (
+            AudioTrackBuilder()
+            .setAudioAttributes(attrs)
+            .setAudioFormat(fmt)
+            .setBufferSizeInBytes(max(min_buf, wanted))
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .build()
+        )
+
+    @staticmethod
+    def _output_device():
+        """Where media would play if the submix did not take it: headphones
+        or Bluetooth when connected at start, else the built-in speaker."""
+        Context = autoclass('android.content.Context')
+        AudioManager = autoclass('android.media.AudioManager')
+        AudioDeviceInfo = autoclass('android.media.AudioDeviceInfo')
+        PythonService = autoclass('org.kivy.android.PythonService')
+        service = PythonService.mService
+        if service is None:
+            return None
+        audio_manager = service.getSystemService(Context.AUDIO_SERVICE)
+        preference = (
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+        )
+        outputs = list(audio_manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
+        for wanted in preference:
+            for device in outputs:
+                if device.getType() == wanted:
+                    return device
+        return None
+
+    def _start_python_echo(self, prefill_bytes):
+        """The echo for builds whose AudioPump cannot play it itself."""
+        self._echo_prefill_bytes = prefill_bytes
+        self._echo_stop = threading.Event()
+        self._echo_queue = queue.Queue(maxsize=self.echo_queue_blocks)
+        self._echo_thread = threading.Thread(
+            target=self._echo_worker, name='RemoteSubmixEcho', daemon=True
+        )
+        self._echo_thread.start()
+
     def _echo_worker(self):
+        AudioTrack = autoclass('android.media.AudioTrack')
+        prefilled = False
         while not self._echo_stop.is_set():
             try:
                 data = self._echo_queue.get(timeout=0.5)
@@ -344,7 +392,11 @@ class AndroidRemoteSubmix:
             if track is None:
                 continue
             try:
-                track.write(data, 0, len(data), 1)  # WRITE_BLOCKING
+                if not prefilled:
+                    prefilled = True
+                    silence = bytes(self._echo_prefill_bytes)
+                    track.write(silence, 0, len(silence), AudioTrack.WRITE_BLOCKING)
+                track.write(data, 0, len(data), AudioTrack.WRITE_BLOCKING)
             except Exception:
                 logger.exception('RemoteSubmix loopback write failed')
 
@@ -396,15 +448,25 @@ class AndroidRemoteSubmix:
 
     @property
     def waveform(self):
+        """One block for the analysis, as mono 16-bit."""
         if self._pump is not None:
             raw = self._pump.take(500)
             if raw is None:
                 if self._last_block is None:
                     raise RuntimeError('RemoteSubmix: no audio from pump')
                 return self._last_block
-            self._last_block = android_pump.to_bytes(raw)
-            self._echo(self._last_block)
-            return self._last_block
+            block = android_pump.to_bytes(raw)
+            if not self._in_java:
+                self._echo(block)
+                block = _downmix(block)
+            self._last_block = block
+            return block
         self.recorder.read(self._waveform, 0, len(self._waveform))
         self._echo(self._waveform)
-        return self._waveform
+        return _downmix(self._waveform)
+
+
+def _downmix(stereo):
+    """Interleaved 16-bit L/R to 16-bit mono, averaging the two."""
+    frames = np.frombuffer(stereo, dtype='<i2').reshape(-1, 2).astype(np.int32)
+    return ((frames[:, 0] + frames[:, 1]) >> 1).astype('<i2').tobytes()

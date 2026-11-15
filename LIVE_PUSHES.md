@@ -26,4 +26,5 @@ change has actually landed in a real commit - don't just let this grow forever.
      (sounddevice.py, this repo's src/) was live-pushed before this file/hook existed, so it was never
      logged here either - found only by diffing the on-device scratch copy against the real committed
      source. Now committed directly to src/sounddevice.py. -->
-- (none currently outstanding)
+- 2026-11-15 TEMP instrumentation (manual root push, never commit): site-packages/ledfx/audio_process/client.py + worker.py ([instr-c]/[instr-w] timing prints, pull model) + protocol.py (single-frame reads, not instrumented); originals kept as client.pyc.orig / worker.pyc.orig / protocol.pyc.orig. Source now: scratchpad instr5/ (split timing; no switch interval, no boost). Remove by deleting the .py and renaming the .orig back.
+- 2026-11-15 TEMP (manual root push): site-packages/ledfx/effects/audio.py = chain tree (main 28ad9d51 + Android chain) + option B non-blocking effect update (the B change itself is committed in _pipeline tools/audio_process.patch; this on-device copy goes when the next APK is installed); original kept as effects/audio.pyc.orig. Source: scratchpad chain/core. Remove by deleting the .py and renaming the .orig back.

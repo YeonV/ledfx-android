@@ -8,11 +8,12 @@ import sys
 
 
 def main():
-    # Same preparation start_ledfx() does before importing ledfx.
-    os.name = 'posix'
-    sys.platform = 'linux'
+    # Same order as service.py: ledfx_bootstrap is imported before the
+    # platform is forced, then the same preparation start_ledfx() does.
     from ledfx_bootstrap import use_bundled_certificates
 
+    os.name = 'posix'
+    sys.platform = 'linux'
     use_bundled_certificates()
 
     port, token = os.environ['PYTHON_SERVICE_ARGUMENT'].split()
