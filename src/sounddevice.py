@@ -35,9 +35,14 @@ if AndroidRemoteSubmix is not None and AndroidRemoteSubmix.is_supported():
     devices_apis = devices_apis + (AndroidRemoteSubmix,)
 
 
+# The input a fresh config starts on (LedFx's default_device_index() lands on
+# this, since no output device is reported): the root capture when the root
+# module granted it, the Visualizer otherwise. A device the user already chose
+# is saved by name and is not affected.
 class default:
     device = {
-        'input': 0,
+        'input': (devices_apis.index(AndroidRemoteSubmix)
+                  if AndroidRemoteSubmix in devices_apis else 0),
         'output': -1
     }
 
