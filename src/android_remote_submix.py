@@ -63,6 +63,7 @@ class AndroidRemoteSubmix:
         self._pump = None
         self._last_block = None
         self._track = None
+        self._anchor = None
         self._echo_queue = None
         self._echo_thread = None
         self._echo_stop = None
@@ -293,6 +294,7 @@ class AndroidRemoteSubmix:
                     AudioFormat, audio_format, AudioAttributes.USAGE_MEDIA
                 )
                 if track.setPreferredDevice(device):
+                    self._anchor = self._start_anchor_track(AudioFormat, audio_format)
                     track.play()
                     logger.info(
                         'RemoteSubmix echo: media path, pinned to output type %s',
@@ -308,6 +310,64 @@ class AndroidRemoteSubmix:
         except Exception:
             logger.exception('Could not start RemoteSubmix loopback playback; '
                               'speaker will stay silent while capturing')
+            return None
+
+    def _start_anchor_track(self, AudioFormat, audio_format):
+        """
+        A silent, unpinned USAGE_MEDIA track that loops for as long as we
+        capture. Without it the pinned echo breaks the capture: the audio
+        policy honors a preferred device for EVERY new media track once all
+        active media clients have one (AOSP findPreferredDevice,
+        AudioIODescriptorInterface.h). When the source app pauses, our pinned
+        echo is the only active media client left, and the app's next track
+        follows it to the speaker instead of into the submix. This track stays
+        active without a preferred device, so that rule never fires; it plays
+        zeros into the submix, which adds nothing to the capture. Static and
+        looping, so nothing has to feed it.
+        """
+        try:
+            AudioTrack = autoclass('android.media.AudioTrack')
+            AudioAttributes = autoclass('android.media.AudioAttributes')
+            AudioAttributesBuilder = autoclass('android.media.AudioAttributes$Builder')
+            AudioFormatBuilder = autoclass('android.media.AudioFormat$Builder')
+            AudioTrackBuilder = autoclass('android.media.AudioTrack$Builder')
+            frames = self.sampling_rate // 10
+            size = frames * 2 * self.capture_channels
+            track = (
+                AudioTrackBuilder()
+                .setAudioAttributes(
+                    AudioAttributesBuilder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+                )
+                .setAudioFormat(
+                    AudioFormatBuilder()
+                    .setEncoding(audio_format)
+                    .setSampleRate(self.sampling_rate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                    .build()
+                )
+                .setBufferSizeInBytes(size)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+            )
+            written = track.write(bytearray(size), 0, size)
+            looped = track.setLoopPoints(0, frames, -1)
+            if written != size or looped != AudioTrack.SUCCESS:
+                track.release()
+                logger.warning(
+                    'RemoteSubmix anchor: not started (write %s of %s, loop %s); '
+                    'a paused source app may escape the capture',
+                    written, size, looped,
+                )
+                return None
+            track.play()
+            logger.info('RemoteSubmix anchor: silent media track keeps the capture route')
+            return track
+        except Exception:
+            logger.exception('RemoteSubmix anchor: could not start; '
+                             'a paused source app may escape the capture')
             return None
 
     def _build_track(self, AudioFormat, audio_format, usage):
@@ -420,6 +480,13 @@ class AndroidRemoteSubmix:
             except Exception as e:
                 logger.warning(f'Error stopping loopback AudioTrack: {e}')
             self._track = None
+        if self._anchor is not None:
+            try:
+                self._anchor.stop()
+                self._anchor.release()
+            except Exception as e:
+                logger.warning(f'Error stopping anchor AudioTrack: {e}')
+            self._anchor = None
         if self.recorder is not None:
             try:
                 self.recorder.stop()
